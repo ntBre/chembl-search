@@ -5,12 +5,15 @@
 import logging
 
 from openff.toolkit import Molecule
-from rdkit.Chem.Draw import rdDepictor, rdMolDraw2D
-from rdkit.Chem.rdmolops import RemoveHs
 from tqdm import tqdm
+
+from visualize import draw_rdkit
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
 with open("smiles.dat") as inp:
-    for line in tqdm(inp, desc="Searching molecules"):
+    for i, line in tqdm(enumerate(inp), desc="Searching molecules"):
         mol = Molecule.from_smiles(line.strip(), allow_undefined_stereo=True)
+        if mol.chemical_environment_matches("[*:1]~[#7:2]=[#15&!X4:3]~[*:4]"):
+            draw_rdkit(mol, f"ref_output/mol{i:03d}.png")
+            print(mol.to_smiles())
