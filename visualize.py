@@ -23,11 +23,16 @@ def draw_rdkit(mol: Molecule, filename, show_all_hydrogens=True):
     drawer.WriteDrawingText(filename)
 
 
-with open("smiles.dat") as inp:
-    win = 0
-    failed = 0
-    for i, line in tqdm(enumerate(inp), desc="Drawing molecules"):
-        mol = Molecule.from_smiles(line.strip(), allow_undefined_stereo=True)
-        draw_rdkit(mol, f"output/mol{i:03d}.png")
+def main():
+    with open("smiles.dat") as inp:
+        for i, line in tqdm(enumerate(inp), desc="Drawing molecules"):
+            mol = Molecule.from_smiles(
+                line.strip(), allow_undefined_stereo=True
+            )
+            draw_rdkit(mol, f"output/mol{i:03d}.png")
+
+
+if __name__ == "__main__":
+    main()
 
 # now make images and look through them in output/*.png
