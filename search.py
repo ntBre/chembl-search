@@ -38,10 +38,11 @@ def main(output_file, input_file):
             except RadicalsNotSupportedError:
                 continue
             labels = label_molecules(ff, mol)
-            if len(labels & targets) > 0:
+            matching = labels & targets
+            if len(matching) > 0:
                 natoms = mol.n_atoms
                 smiles = mol.to_smiles()
-                out.write("{natoms} {ids} {smiles}\n")
+                out.write("{natoms} {matching} {smiles}\n")
                 print(natoms, labels, smiles)
 
 
