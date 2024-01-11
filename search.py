@@ -23,20 +23,13 @@ def label_molecules(self, molecule):
     current_molecule_labels = dict()
     tag = "ProperTorsions"
     parameter_handler = self._parameter_handlers[tag]
-    param_is_list = False
 
     matches = parameter_handler.find_matches(top_mol)
 
     parameter_matches = matches.__class__()
 
-    if param_is_list:
-        for match in matches:
-            parameter_matches[match] = [
-                m.parameter_type for m in matches[match]
-            ]
-    else:
-        for match in matches:
-            parameter_matches[match] = matches[match].parameter_type
+    for match in matches:
+        parameter_matches[match] = matches[match].parameter_type
 
     current_molecule_labels[tag] = parameter_matches
 
