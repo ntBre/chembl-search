@@ -3,7 +3,7 @@
 import logging
 
 import click
-from openff.toolkit import ForceField, Molecule
+from openff.toolkit import ForceField, Molecule, Topology
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
 from tqdm import tqdm
 
@@ -17,8 +17,6 @@ ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 
 
 def label_molecules(self, molecule):
-    from openff.toolkit import Topology
-
     top_mol = Topology.from_molecules([molecule])
     current_molecule_labels = dict()
     tag = "ProperTorsions"
