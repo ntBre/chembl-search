@@ -25,16 +25,11 @@ def from_rdkit(
     if _cls is None:
         _cls = Molecule
 
-    # Make a copy of the RDKit Mol as we'll need to change it (e.g. assign
-    # stereo).
     rdmol = Chem.Mol(rdmol)
 
     if not hydrogens_are_explicit:
         rdmol = Chem.AddHs(rdmol, addCoords=True)
 
-    # Sanitizing the molecule. We handle aromaticity and chirality manually.
-    # This SanitizeMol(...) calls cleanUp, updatePropertyCache, symmetrizeSSSR,
-    # assignRadicals, setConjugation, and setHybridization.
     Chem.SanitizeMol(
         rdmol,
         (
@@ -45,43 +40,27 @@ def from_rdkit(
         ),
     )
     Chem.SetAromaticity(rdmol, Chem.AromaticityModel.AROMATICITY_MDL)
-    # SetAromaticity set aromatic bonds to 1.5, but Molecule.bond_order is an
-    # integer (contrarily to fractional_bond_order) so we need the Kekule order
     Chem.Kekulize(rdmol)
 
-    # Make sure the bond stereo tags are set before checking for
-    # undefined stereo. RDKit can figure out bond stereo from other
-    # information in the Mol object like bond direction properties.
-    # Do not overwrite eventual chiral tags provided by the user.
     Chem.AssignStereochemistry(rdmol, cleanIt=False)
 
-    # Check for undefined stereochemistry.
     self._detect_undefined_stereo(
         rdmol,
         raise_warning=allow_undefined_stereo,
         err_msg_prefix="Unable to make OFFMol from RDMol: ",
     )
 
-    # Create a new OpenFF Molecule
     offmol = _cls()
 
-    # If RDMol has a title, use it
     if rdmol.HasProp("_Name"):
         offmol.name = rdmol.GetProp("_Name")
 
-    # Store all properties
-    # TODO: Should there be an API point for storing properties?
     properties = rdmol.GetPropsAsDict()
     offmol._properties = properties
 
-    # setting chirality in openeye requires using neighbor atoms
-    # therefore we can't do it until after the atoms and bonds are all added
     map_atoms = {}
     map_bonds = {}
-    # if we are loading from a mapped smiles extract the mapping
     atom_mapping = {}
-    # We need the elements of the lanthanides, actinides, and transition
-    # metals as we don't want to exclude radicals in these blocks.
     d_and_f_block_elements = {
         *range(21, 31),
         *range(39, 49),
@@ -89,7 +68,6 @@ def from_rdkit(
         *range(89, 113),
     }
     for rda in rdmol.GetAtoms():
-        # See issues #1075 for some discussion on radicals
         if (
             rda.GetAtomicNum() not in d_and_f_block_elements
             and rda.GetNumRadicalElectrons() != 0
@@ -97,37 +75,27 @@ def from_rdkit(
             return None
 
         rd_idx = rda.GetIdx()
-        # if the molecule was made from a mapped smiles this has been hidden
-        # so that it does not affect the sterochemistry tags
         try:
             map_id = int(rda.GetProp("_map_idx"))
         except KeyError:
             map_id = rda.GetAtomMapNum()
 
-        # create a new atom
-        # atomic_number = oemol.NewAtom(rda.GetAtomicNum())
         atomic_number = rda.GetAtomicNum()
-        # implicit units of elementary charge
         formal_charge = rda.GetFormalCharge()
         is_aromatic = rda.GetIsAromatic()
         if rda.HasProp("_Name"):
             name = rda.GetProp("_Name")
         else:
-            # check for PDB names
             try:
                 name = rda.GetMonomerInfo().GetName().strip()
             except AttributeError:
                 name = ""
 
-        # If chiral, store the chirality to be set later
         stereochemistry = None
-        # tag = rda.GetChiralTag()
         if rda.HasProp("_CIPCode"):
             stereo_code = rda.GetProp("_CIPCode")
-            # if tag == Chem.CHI_TETRAHEDRAL_CCW:
             if stereo_code == "R":
                 stereochemistry = "R"
-            # if tag == Chem.CHI_TETRAHEDRAL_CW:
             elif stereo_code == "S":
                 stereochemistry = "S"
             else:
@@ -158,8 +126,6 @@ def from_rdkit(
 
     offmol._invalidate_cached_properties()
 
-    # If we have a full / partial atom map add it to the molecule. Zeroes 0
-    # indicates no mapping
     if {*atom_mapping.values()} != {0}:
         offmol._properties["atom_map"] = {
             idx: map_idx
@@ -167,20 +133,15 @@ def from_rdkit(
             if map_idx != 0
         }
 
-    # Similar to chirality, stereochemistry of bonds in OE is set relative to
-    # their neighbors
     for rdb in rdmol.GetBonds():
         rdb_idx = rdb.GetIdx()
         a1 = rdb.GetBeginAtomIdx()
         a2 = rdb.GetEndAtomIdx()
 
-        # Determine bond aromaticity and Kekulized bond order
         is_aromatic = rdb.GetIsAromatic()
         order = rdb.GetBondTypeAsDouble()
-        # Convert floating-point bond order to integral bond order
         order = int(order)
 
-        # create a new bond
         bond_index = offmol._add_bond(
             map_atoms[a1],
             map_atoms[a2],
@@ -192,16 +153,10 @@ def from_rdkit(
 
     offmol._invalidate_cached_properties()
 
-    # Now fill in the cached (structure-dependent) properties. We have to have
-    # the 2D structure of the molecule in place first, because each call to
-    # add_atom and add_bond invalidates all cached properties
     for rdb in rdmol.GetBonds():
         rdb_idx = rdb.GetIdx()
         offb_idx = map_bonds[rdb_idx]
         offb = offmol.bonds[offb_idx]
-        # determine if stereochemistry is needed. Note that RDKit has 6
-        # possible values of bond stereo: CIS, TRANS, E, Z, ANY, or NONE The
-        # logic below assumes that "ANY" and "NONE" mean the same thing.
         stereochemistry = None
         tag = rdb.GetStereo()
         if tag == Chem.BondStereo.STEREOZ:
@@ -221,12 +176,9 @@ def from_rdkit(
             fractional_bond_order = rdb.GetDoubleProp("fractional_bond_order")
         offb.fractional_bond_order = fractional_bond_order
 
-    # TODO: Save conformer(s), if present
-    # If the rdmol has a conformer, store its coordinates
     if len(rdmol.GetConformers()) != 0:
         for conf in rdmol.GetConformers():
             n_atoms = offmol.n_atoms
-            # Here we assume this always be angstrom
             positions = np.zeros((n_atoms, 3))
             for rd_idx, off_idx in map_atoms.items():
                 atom_coords = conf.GetPositions()[rd_idx, :]
@@ -243,8 +195,6 @@ def from_rdkit(
             partial_charges[off_idx] = charge
             any_atom_has_partial_charge = True
         else:
-            # If some other atoms had partial charges but this one doesn't,
-            # raise an Exception
             if any_atom_has_partial_charge:
                 raise ValueError(
                     "Only some atoms in rdmol have partial charges"
