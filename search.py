@@ -274,7 +274,8 @@ with gzip.open("chembl_33.sdf.gz") as infile:
     for mol in tqdm(
         RDKitToolkitWrapper()._process_sdf_supplier(
             supplier, allow_undefined_stereo=True, _cls=None
-        )
+        ),
+        total=2399743,  # from chembl website, might be correct?
     ):
         if mol is not None:
             try:
@@ -284,4 +285,4 @@ with gzip.open("chembl_33.sdf.gz") as infile:
                 res = False
 
             if res:
-                print(mol.to_smiles())
+                print(mol.n_atoms, mol.to_smiles())
