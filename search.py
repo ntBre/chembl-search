@@ -1,11 +1,10 @@
 # search for a SMIRKS pattern in the ChEMBL database
 import gzip
 import logging
-import sys
-import time
 
+import click
 import numpy as np
-from openff.toolkit import Molecule
+from openff.toolkit import ForceField, Molecule
 from openff.toolkit.utils import RDKitToolkitWrapper
 from openff.toolkit.utils.exceptions import UndefinedStereochemistryError
 from openff.units import Quantity, unit
@@ -13,6 +12,8 @@ from rdkit import Chem
 from tqdm import tqdm
 
 logging.getLogger("openff").setLevel(logging.ERROR)
+
+from openff.toolkit.utils.toolkits import RDKitToolkitWrapper, ToolkitRegistry
 
 
 def from_rdkit(
@@ -212,27 +213,52 @@ def from_rdkit(
 # instead.
 RDKitToolkitWrapper.from_rdkit = from_rdkit
 
-target = "[*:1]~[#7:2]=[#15:3]~[*:4]"
+forcefield = "../projects/benchmarking/forcefields/tm-tm.offxml"
+targets = ["t18b"]
 
-start = time.time()
-with gzip.open("chembl_33.sdf.gz") as infile:
-    supplier = Chem.ForwardSDMolSupplier(
-        infile, removeHs=False, sanitize=False, strictParsing=True
-    )
+ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 
-    molecules = []
-    for mol in tqdm(
-        RDKitToolkitWrapper()._process_sdf_supplier(
-            supplier, allow_undefined_stereo=True, _cls=None
-        ),
-        total=2399743,  # from chembl website, might be correct?
-    ):
-        if mol is not None:
-            try:
-                res = mol.chemical_environment_matches(target)
-            except Exception as e:
-                print(f"warning: {e}", file=sys.stderr)
-                res = False
 
-            if res:
-                print(mol.n_atoms, mol.to_smiles())
+@click.command()
+@click.option("--output", "-o")
+def main(output):
+    with gzip.open("chembl_33.sdf.gz") as inp, open(output, "w") as out:
+        supplier = Chem.ForwardSDMolSupplier(
+            inp, removeHs=False, sanitize=False, strictParsing=True
+        )
+
+        molecules = (
+            mol
+            for mol in tqdm(
+                RDKitToolkitWrapper()._process_sdf_supplier(
+                    supplier, allow_undefined_stereo=True, _cls=None
+                ),
+                total=2399743,  # from chembl website, might be correct?
+            )
+            if mol is not None
+        )
+
+        for mol in molecules:
+            smiles = mol.to_smiles(
+                toolkit_registry=ToolkitRegistry([RDKitToolkitWrapper])
+            )
+            out.write(f"{smiles}\n")
+
+        # try:
+        #     labels = ff.label_molecules(mol.to_topology())[0]
+        #     torsions = labels["ProperTorsions"]
+        #     ids = {t.id for t in torsions.values() if t.id in targets}
+        #     res = len(ids) > 0
+        # except Exception as e:
+        #     print(f"warning: {str(e):.60s}", file=sys.stderr)
+        #     res = False
+
+        # if res:
+        #     natoms = mol.n_atoms
+        #     smiles = mol.to_smiles()
+        #     out.write("{natoms} {ids} {smiles}\n")
+        #     print(natoms, ids, smiles)
+
+
+if __name__ == "__main__":
+    main()
