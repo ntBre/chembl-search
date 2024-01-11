@@ -11,27 +11,18 @@ logging.getLogger("openff").setLevel(logging.ERROR)
 
 
 forcefield = "../projects/benchmarking/forcefields/tm-tm.offxml"
-targets = ["t18b"]
+targets = {"t18b"}
 
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 
 
-def label_molecules(self, molecule):
+def label_molecules(self, molecule) -> set[str]:
+    "returns a set of ProperTorsion ids matched"
     top_mol = Topology.from_molecules([molecule])
-    current_molecule_labels = dict()
     tag = "ProperTorsions"
     parameter_handler = self._parameter_handlers[tag]
-
     matches = parameter_handler.find_matches(top_mol)
-
-    parameter_matches = matches.__class__()
-
-    for match in matches:
-        parameter_matches[match] = matches[match].parameter_type
-
-    current_molecule_labels[tag] = parameter_matches
-
-    return current_molecule_labels
+    return {matches[m].parameter_type.id for m in matches}
 
 
 @click.command()
@@ -47,13 +38,11 @@ def main(output_file, input_file):
             except RadicalsNotSupportedError:
                 continue
             labels = label_molecules(ff, mol)
-            torsions = labels["ProperTorsions"]
-            ids = {t.id for t in torsions.values() if t.id in targets}
-            if len(ids) > 0:
+            if len(labels & targets) > 0:
                 natoms = mol.n_atoms
                 smiles = mol.to_smiles()
                 out.write("{natoms} {ids} {smiles}\n")
-                print(natoms, ids, smiles)
+                print(natoms, labels, smiles)
 
 
 if __name__ == "__main__":
