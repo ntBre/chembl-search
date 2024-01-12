@@ -93,21 +93,9 @@ def find_smarts_matches(
     )
 
 
-def label_molecules(ff, molecule) -> set[str]:
-    "returns a set of ProperTorsion ids matched"
-    tag = "ProperTorsions"
-    envs = ValenceDict()
-    for a, b, c, d in molecule.propers:
-        key = (
-            a.molecule_atom_index,
-            b.molecule_atom_index,
-            c.molecule_atom_index,
-            d.molecule_atom_index,
-        )
-        envs[key] = None
-    remaining = len(envs)
-    parameter_handler = ff._parameter_handlers[tag]
-    for parameter in reversed(parameter_handler._parameters):
+def _find_matches(self, molecule):
+    matches = ValenceDict()
+    for parameter in self._parameters:
         env_matches = find_smarts_matches(
             wrapper,
             molecule,
@@ -115,12 +103,16 @@ def label_molecules(ff, molecule) -> set[str]:
             unique=False,
         )
         for environment_match in env_matches:
-            if environment_match in envs and envs[environment_match] is None:
-                envs[environment_match] = parameter.id
-                remaining -= 1
-            if remaining == 0:
-                return {v for v in envs.values()}
-    assert False
+            matches[environment_match] = parameter
+    return matches
+
+
+def label_molecules(self, molecule) -> set[str]:
+    "returns a set of ProperTorsion ids matched"
+    tag = "ProperTorsions"
+    parameter_handler = self._parameter_handlers[tag]
+    matches = _find_matches(parameter_handler, molecule)
+    return {m.id for m in matches.values()}
 
 
 @click.command()
