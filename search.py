@@ -7,6 +7,7 @@ from typing import TypeAlias, Union
 
 import click
 from openff.toolkit import ForceField, Molecule, Topology
+from openff.toolkit.topology import ValenceDict
 from openff.toolkit.utils import ToolkitRegistry, ToolkitWrapper
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
 from openff.toolkit.utils.toolkits import GLOBAL_TOOLKIT_REGISTRY
@@ -44,20 +45,42 @@ def chemical_environment_matches(
     return mol_matches
 
 
+# def _find_matches(
+#     self,
+#     entity,
+#     unique=False,
+# ):
+#     matches = list()
+#     for parameter in self._parameters:
+#         env_matches = chemical_environment_matches(
+#             entity,
+#             parameter.smirks,
+#             unique=unique,
+#         )
+#         if env_matches:
+#             matches.append(parameter)
+
+#     return matches
+
+
 def _find_matches(
     self,
     entity,
     unique=False,
 ):
-    matches = list()
-    for parameter in self._parameters:
-        env_matches = chemical_environment_matches(
-            entity,
-            parameter.smirks,
+    matches = ValenceDict()
+
+    # TODO: There are probably performance gains to be had here
+    #       by performing this loop in reverse order, and breaking early once
+    #       all environments have been matched.
+    for parameter_type in self._parameters:
+        for environment_match in entity.chemical_environment_matches(
+            parameter_type.smirks,
             unique=unique,
-        )
-        if env_matches:
-            matches.append(parameter)
+        ):
+            # Update the matches for this parameter type.
+            handler_match = self._Match(parameter_type, environment_match)
+            matches[environment_match.topology_atom_indices] = handler_match
 
     return matches
 
@@ -68,7 +91,7 @@ def label_molecules(self, molecule) -> set[str]:
     tag = "ProperTorsions"
     parameter_handler = self._parameter_handlers[tag]
     matches = _find_matches(parameter_handler, top_mol)
-    return {m.id for m in matches}
+    return {m.parameter_type.id for m in matches.values()}
 
 
 @click.command()
