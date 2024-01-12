@@ -9,6 +9,7 @@ from openff.toolkit import ForceField, Molecule
 from openff.toolkit.topology import ValenceDict
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
 from openff.toolkit.utils.toolkits import RDKitToolkitWrapper
+from rdkit import Chem
 from tqdm import tqdm
 
 logging.getLogger("openff").setLevel(logging.ERROR)
@@ -21,6 +22,35 @@ ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 wrapper = RDKitToolkitWrapper()
 
 
+def _find_smarts_matches(
+    rdmol,
+    smarts: str,
+    aromaticity_model: str = "OEAroModel_MDL",
+    unique: bool = False,
+) -> list[tuple[int, ...]]:
+    qmol = Chem.MolFromSmarts(smarts)
+
+    assert qmol is not None
+
+    idx_map = dict()
+    for atom in qmol.GetAtoms():
+        smirks_index = atom.GetAtomMapNum()
+        if smirks_index != 0:
+            idx_map[smirks_index - 1] = atom.GetIdx()
+    map_list = [idx_map[x] for x in sorted(idx_map)]
+
+    # UINT_MAX from limits.h
+    max_matches = 4294967295
+    match_kwargs = dict(
+        uniquify=unique, maxMatches=max_matches, useChirality=True
+    )
+    full_matches = rdmol.GetSubstructMatches(qmol, **match_kwargs)
+
+    matches = [tuple(mat[x] for x in map_list) for mat in full_matches]
+
+    return matches
+
+
 def find_smarts_matches(
     self,
     molecule: "Molecule",
@@ -31,7 +61,7 @@ def find_smarts_matches(
     rdmol = self._connection_table_to_rdkit(
         molecule, aromaticity_model=aromaticity_model
     )
-    return self._find_smarts_matches(
+    return _find_smarts_matches(
         rdmol,
         smarts,
         aromaticity_model="OEAroModel_MDL",
