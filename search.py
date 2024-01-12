@@ -21,6 +21,30 @@ targets = {"t18b"}
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 wrapper = RDKitToolkitWrapper()
 
+# the big issue here is that we need to know *all* of the parameters that
+# "match" a given molecule. it's not enough to know *that* a parameter matches
+# because it could be superseded by a later parameter. similarly, it's not
+# enough to say that something matches as soon as a single parameter matches
+# because each molecule has multiple "chemical environments" that will match
+# different parameters. so each molecule needs to map to a set of parameters
+# that all "match" it somewhere, where match is defined by the force field to
+# mean the last listed parameter that matches the environment.
+#
+# the comment in toolkit/parameters.py sounds easy to do, just "loop in reverse
+# order, and [break] early once all environments have been matched." However,
+# it's not clear (at least to me) how to get the list of all environments. if
+# we had that, we could simply iterate as follows:
+#
+# for each environment:
+#   for each parameter.rev():
+#     if matches(parameter, environment):
+#       save parameter
+#       break 'environment
+#
+# it just occurred to me that this might be hard to do in general, but because
+# I'm only looking at torsions, I may be able to do this exactly with
+# Molecule.propers
+
 
 def _find_smarts_matches(
     rdmol,
@@ -69,9 +93,21 @@ def find_smarts_matches(
     )
 
 
-def _find_matches(self, molecule):
-    matches = ValenceDict()
-    for parameter in self._parameters:
+def label_molecules(ff, molecule) -> set[str]:
+    "returns a set of ProperTorsion ids matched"
+    tag = "ProperTorsions"
+    envs = ValenceDict()
+    for a, b, c, d in molecule.propers:
+        key = (
+            a.molecule_atom_index,
+            b.molecule_atom_index,
+            c.molecule_atom_index,
+            d.molecule_atom_index,
+        )
+        envs[key] = None
+    remaining = len(envs)
+    parameter_handler = ff._parameter_handlers[tag]
+    for parameter in reversed(parameter_handler._parameters):
         env_matches = find_smarts_matches(
             wrapper,
             molecule,
@@ -79,16 +115,12 @@ def _find_matches(self, molecule):
             unique=False,
         )
         for environment_match in env_matches:
-            matches[environment_match] = parameter
-    return matches
-
-
-def label_molecules(self, molecule) -> set[str]:
-    "returns a set of ProperTorsion ids matched"
-    tag = "ProperTorsions"
-    parameter_handler = self._parameter_handlers[tag]
-    matches = _find_matches(parameter_handler, molecule)
-    return {m.id for m in matches.values()}
+            if environment_match in envs and envs[environment_match] is None:
+                envs[environment_match] = parameter.id
+                remaining -= 1
+            if remaining == 0:
+                return {v for v in envs.values()}
+    assert False
 
 
 @click.command()
