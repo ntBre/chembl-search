@@ -21,30 +21,6 @@ targets = {"t18b"}
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 wrapper = RDKitToolkitWrapper()
 
-# the big issue here is that we need to know *all* of the parameters that
-# "match" a given molecule. it's not enough to know *that* a parameter matches
-# because it could be superseded by a later parameter. similarly, it's not
-# enough to say that something matches as soon as a single parameter matches
-# because each molecule has multiple "chemical environments" that will match
-# different parameters. so each molecule needs to map to a set of parameters
-# that all "match" it somewhere, where match is defined by the force field to
-# mean the last listed parameter that matches the environment.
-#
-# the comment in toolkit/parameters.py sounds easy to do, just "loop in reverse
-# order, and [break] early once all environments have been matched." However,
-# it's not clear (at least to me) how to get the list of all environments. if
-# we had that, we could simply iterate as follows:
-#
-# for each environment:
-#   for each parameter.rev():
-#     if matches(parameter, environment):
-#       save parameter
-#       break 'environment
-#
-# it just occurred to me that this might be hard to do in general, but because
-# I'm only looking at torsions, I may be able to do this exactly with
-# Molecule.propers
-
 
 def _find_smarts_matches(
     rdmol,
