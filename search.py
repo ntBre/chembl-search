@@ -25,7 +25,6 @@ wrapper = RDKitToolkitWrapper()
 def _find_smarts_matches(
     rdmol,
     smarts: str,
-    aromaticity_model: str = "OEAroModel_MDL",
     unique: bool = False,
 ) -> list[tuple[int, ...]]:
     qmol = Chem.MolFromSmarts(smarts)
@@ -61,10 +60,11 @@ def find_smarts_matches(
     rdmol = self._connection_table_to_rdkit(
         molecule, aromaticity_model=aromaticity_model
     )
+    # this is where I can stop with Python. if I load an RDMol straight from
+    # SDF in C++, I can call the RDKit functions in _find_smarts_matches there
     return _find_smarts_matches(
         rdmol,
         smarts,
-        aromaticity_model="OEAroModel_MDL",
         unique=unique,
     )
 
