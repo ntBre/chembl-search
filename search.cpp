@@ -7,8 +7,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <limits>
 
-// #define DEBUG
+#define DEBUG
 
 std::vector<std::tuple<int, int, int, int>>
 find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
@@ -16,22 +17,27 @@ find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
   // ordered map so we can avoid sorting later
   // this looks exactly like what the python does
   // http://www.rdkit.org/docs/GettingStartedInC%2B%2B.html#atom-map-indices-in-smarts
-  std::map<int, int> idx_map;
+  std::map<int, unsigned int> idx_map;
   for (auto atom : qmol->atoms()) {
     auto smirks_index = atom->getAtomMapNum();
-    if (smirks_index != 0) {
+    if (smirks_index) {
       idx_map[smirks_index - 1] = atom->getIdx();
     }
   }
   std::vector<int> map_list;
   for (const auto &[key, value] : idx_map) {
+	std::cout << value << " ";
     map_list.push_back(value);
   }
+  std::cout << std::endl;
 
   std::vector<RDKit::MatchVectType> res;
-  bool useChirality = true;
+  RDKit::SubstructMatchParameters params;
+  params.useChirality = true;
+  params.maxMatches = UINT_MAX;
+  params.uniquify = false;
   std::vector<std::tuple<int, int, int, int>> ret;
-  if (RDKit::SubstructMatch(*rdmol, *qmol, res, useChirality)) {
+  if (RDKit::SubstructMatch(*rdmol, *qmol, res, &params)) {
     for (size_t i = 0; i < res.size(); ++i) {
       std::vector<int> tmp;
 #ifdef DEBUG
@@ -65,10 +71,10 @@ int main() {
   RDKit::SDMolSupplier mol_supplier(input_file, true);
   for (size_t i = 0; i < 50 && !mol_supplier.atEnd(); ++i) {
     mol.reset(mol_supplier.next());
+    auto smiles = RDKit::MolToSmiles(*mol);
+	std::cout << smiles << std::endl;
     find_smarts_matches(&*mol, smarts);
 
-    auto smiles = RDKit::MolToSmiles(*mol);
-    out << smiles << std::endl;
   }
   out.close();
   return 0;
