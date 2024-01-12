@@ -18,12 +18,32 @@ forcefield = "../projects/benchmarking/forcefields/tm-tm.offxml"
 targets = {"t18b"}
 
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
+wrapper = RDKitToolkitWrapper()
+
+
+def find_smarts_matches(
+    self,
+    molecule: "Molecule",
+    smarts: str,
+    aromaticity_model: str = "OEAroModel_MDL",
+    unique: bool = False,
+) -> list[tuple[int, ...]]:
+    rdmol = self._connection_table_to_rdkit(
+        molecule, aromaticity_model=aromaticity_model
+    )
+    return self._find_smarts_matches(
+        rdmol,
+        smarts,
+        aromaticity_model="OEAroModel_MDL",
+        unique=unique,
+    )
 
 
 def _find_matches(self, molecule):
     matches = ValenceDict()
     for parameter in self._parameters:
-        env_matches = RDKitToolkitWrapper().find_smarts_matches(
+        env_matches = find_smarts_matches(
+            wrapper,
             molecule,
             parameter.smirks,
             unique=False,
