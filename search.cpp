@@ -26,7 +26,8 @@ void find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
   }
 
   std::vector<RDKit::MatchVectType> res;
-  if (RDKit::SubstructMatch(*rdmol, *qmol, res)) {
+  bool useChirality = true;
+  if (RDKit::SubstructMatch(*rdmol, *qmol, res, useChirality)) {
     for (size_t i = 0; i < res.size(); ++i) {
       std::cout << "Match " << i + 1 << " : ";
       for (size_t j = 0; j < map_list.size(); ++j) {
