@@ -36,6 +36,9 @@ def _find_smarts_matches(
         smirks_index = atom.GetAtomMapNum()
         if smirks_index != 0:
             idx_map[smirks_index - 1] = atom.GetIdx()
+
+    # is this ever not the case? in a quick run they all were already in the
+    # right order
     map_list = [idx_map[x] for x in sorted(idx_map)]
 
     # UINT_MAX from limits.h
