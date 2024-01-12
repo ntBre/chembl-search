@@ -1,11 +1,19 @@
 # search for structures matching ForceField parameters in the ChEMBL database
 
+# using ib-dev-new environment, just random choice
+
 import logging
+from typing import TypeAlias, Union
 
 import click
 from openff.toolkit import ForceField, Molecule, Topology
+from openff.toolkit.utils import ToolkitRegistry, ToolkitWrapper
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
+from openff.toolkit.utils.toolkits import GLOBAL_TOOLKIT_REGISTRY
 from tqdm import tqdm
+
+TKR: TypeAlias = Union[ToolkitRegistry, ToolkitWrapper]
+
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
@@ -16,13 +24,51 @@ targets = {"t18b"}
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 
 
+def chemical_environment_matches(
+    self,
+    smarts: str,
+    unique: bool = False,
+    toolkit_registry: TKR = GLOBAL_TOOLKIT_REGISTRY,
+):
+    assert len(self.identical_molecule_groups) == 1
+
+    unique_mol_idx = 0
+    unique_mol = self.molecule(unique_mol_idx)
+
+    mol_matches = unique_mol.chemical_environment_matches(
+        smarts,
+        unique=unique,
+        toolkit_registry=toolkit_registry,
+    )
+
+    return mol_matches
+
+
+def _find_matches(
+    self,
+    entity,
+    unique=False,
+):
+    matches = list()
+    for parameter in self._parameters:
+        env_matches = chemical_environment_matches(
+            entity,
+            parameter.smirks,
+            unique=unique,
+        )
+        if env_matches:
+            matches.append(parameter)
+
+    return matches
+
+
 def label_molecules(self, molecule) -> set[str]:
     "returns a set of ProperTorsion ids matched"
     top_mol = Topology.from_molecules([molecule])
     tag = "ProperTorsions"
     parameter_handler = self._parameter_handlers[tag]
-    matches = parameter_handler.find_matches(top_mol)
-    return {matches[m].parameter_type.id for m in matches}
+    matches = _find_matches(parameter_handler, top_mol)
+    return {m.id for m in matches}
 
 
 @click.command()
