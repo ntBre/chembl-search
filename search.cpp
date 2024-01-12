@@ -8,7 +8,10 @@
 #include <iostream>
 #include <string>
 
-void find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
+// #define DEBUG
+
+std::vector<std::tuple<int, int, int, int>>
+find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
   RDKit::RWMol *qmol = RDKit::SmartsToMol(smarts);
   // ordered map so we can avoid sorting later
   // this looks exactly like what the python does
@@ -27,16 +30,29 @@ void find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
 
   std::vector<RDKit::MatchVectType> res;
   bool useChirality = true;
+  std::vector<std::tuple<int, int, int, int>> ret;
   if (RDKit::SubstructMatch(*rdmol, *qmol, res, useChirality)) {
     for (size_t i = 0; i < res.size(); ++i) {
+      std::vector<int> tmp;
+#ifdef DEBUG
       std::cout << "Match " << i + 1 << " : ";
+#endif
       for (size_t j = 0; j < map_list.size(); ++j) {
+        tmp.push_back(res[i][map_list[j]].second);
+#ifdef DEBUG
         std::cout << res[i][map_list[j]].second << " ";
+#endif
       }
+      ret.push_back(std::make_tuple(tmp[0], tmp[1], tmp[2], tmp[3]));
+#ifdef DEBUG
       std::cout << std::endl;
+#endif
     }
   }
+#ifdef DEBUG
   std::cout << std::endl;
+#endif
+  return ret;
 }
 
 int main() {
