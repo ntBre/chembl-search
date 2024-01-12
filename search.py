@@ -3,18 +3,13 @@
 # using ib-dev-new environment, just random choice
 
 import logging
-from typing import TypeAlias, Union
 
 import click
 from openff.toolkit import ForceField, Molecule
 from openff.toolkit.topology import ValenceDict
-from openff.toolkit.utils import ToolkitRegistry, ToolkitWrapper
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
 from openff.toolkit.utils.toolkits import RDKitToolkitWrapper
 from tqdm import tqdm
-
-TKR: TypeAlias = Union[ToolkitRegistry, ToolkitWrapper]
-
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
