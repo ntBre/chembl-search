@@ -10,7 +10,10 @@ from openff.toolkit import ForceField, Molecule, Topology
 from openff.toolkit.topology import ValenceDict
 from openff.toolkit.utils import ToolkitRegistry, ToolkitWrapper
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
-from openff.toolkit.utils.toolkits import GLOBAL_TOOLKIT_REGISTRY
+from openff.toolkit.utils.toolkits import (
+    GLOBAL_TOOLKIT_REGISTRY,
+    RDKitToolkitWrapper,
+)
 from tqdm import tqdm
 
 TKR: TypeAlias = Union[ToolkitRegistry, ToolkitWrapper]
@@ -25,55 +28,13 @@ targets = {"t18b"}
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
 
 
-def chemical_environment_matches(
-    self,
-    smarts: str,
-    unique: bool = False,
-    toolkit_registry: TKR = GLOBAL_TOOLKIT_REGISTRY,
-):
-    assert len(self.identical_molecule_groups) == 1
-
-    unique_mol_idx = 0
-    unique_mol = self.molecule(unique_mol_idx)
-
-    mol_matches = unique_mol.chemical_environment_matches(
-        smarts,
-        unique=unique,
-        toolkit_registry=toolkit_registry,
-    )
-
-    return mol_matches
-
-
-# def _find_matches(
-#     self,
-#     entity,
-#     unique=False,
-# ):
-#     matches = list()
-#     for parameter in self._parameters:
-#         env_matches = chemical_environment_matches(
-#             entity,
-#             parameter.smirks,
-#             unique=unique,
-#         )
-#         if env_matches:
-#             matches.append(parameter)
-
-#     return matches
-
-
-def _find_matches(
-    self,
-    entity,
-    unique=False,
-):
+def _find_matches(self, molecule):
     matches = ValenceDict()
     for parameter in self._parameters:
-        env_matches = chemical_environment_matches(
-            entity,
+        env_matches = RDKitToolkitWrapper().find_smarts_matches(
+            molecule,
             parameter.smirks,
-            unique=unique,
+            unique=False,
         )
         for environment_match in env_matches:
             matches[environment_match] = parameter
@@ -82,10 +43,9 @@ def _find_matches(
 
 def label_molecules(self, molecule) -> set[str]:
     "returns a set of ProperTorsion ids matched"
-    top_mol = Topology.from_molecules([molecule])
     tag = "ProperTorsions"
     parameter_handler = self._parameter_handlers[tag]
-    matches = _find_matches(parameter_handler, top_mol)
+    matches = _find_matches(parameter_handler, molecule)
     return {m.id for m in matches.values()}
 
 
