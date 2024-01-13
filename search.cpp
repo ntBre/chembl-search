@@ -11,7 +11,7 @@
 
 #define DEBUG
 
-std::vector<std::tuple<int, int, int, int>>
+std::vector<std::vector<int>>
 find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
   RDKit::RWMol *qmol = RDKit::SmartsToMol(smarts);
   // ordered map so we can avoid sorting later
@@ -36,7 +36,7 @@ find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
   params.useChirality = true;
   params.maxMatches = UINT_MAX;
   params.uniquify = false;
-  std::vector<std::tuple<int, int, int, int>> ret;
+  std::vector<std::vector<int>> ret;
   if (RDKit::SubstructMatch(*rdmol, *qmol, res, &params)) {
     for (size_t i = 0; i < res.size(); ++i) {
       std::vector<int> tmp;
@@ -49,7 +49,7 @@ find_smarts_matches(RDKit::ROMol *rdmol, std::string smarts) {
         std::cout << res[i][map_list[j]].second << " ";
 #endif
       }
-      ret.push_back(std::make_tuple(tmp[0], tmp[1], tmp[2], tmp[3]));
+      ret.push_back(tmp);
 #ifdef DEBUG
       std::cout << std::endl;
 #endif
