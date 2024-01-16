@@ -1,8 +1,7 @@
-use std::fs::File;
-use std::io::Write;
+use std::collections::HashMap;
 
 use openff_toolkit::ForceField;
-use rdkit::{find_smarts_matches, SDMolSupplier};
+use rdkit::{find_smarts_matches, ROMol, SDMolSupplier};
 
 /// TODO move this to its own crate, possibly in a workspace with rdkit-sys
 pub mod rdkit {
@@ -49,7 +48,7 @@ pub mod rdkit {
     pub struct ROMol(*mut RDKit_ROMol);
 
     impl ROMol {
-        pub fn to_smiles(self) -> String {
+        pub fn to_smiles(&self) -> String {
             unsafe {
                 let smiles = RDKit_MolToSmiles(self.0);
                 let s = CStr::from_ptr(smiles);
@@ -88,29 +87,86 @@ pub mod rdkit {
     }
 }
 
+type TorsEnv = (usize, usize, usize, usize);
+
+/// returns a vector of parameter ids matching `mol`. matching starts with the
+/// first parameter and proceeds through the whole sequence of parameters, so
+/// this should follow the SMIRNOFF typing rules
+fn find_matches(params: &[(String, String)], mol: &ROMol) -> Vec<String> {
+    let mut matches: HashMap<TorsEnv, String> = HashMap::new();
+    for (id, smirks) in params {
+        let env_matches = find_smarts_matches(mol, smirks);
+        for mat in env_matches {
+            assert_eq!(mat.len(), 4);
+            let mat = (mat[0], mat[1], mat[2], mat[3]);
+            matches.insert(mat, id.clone());
+        }
+    }
+    let mut ret: Vec<_> = matches.into_values().collect();
+    ret.sort();
+    ret.dedup();
+    ret
+}
+
+/// this is what we're hoping to get out, confirmed by default toolkit and
+/// search.py for this smiles Cc1cc(-c2csc(N=C(N)N)n2)cn1C:
+///
+/// 't115'   't115'
+/// 't116'	 't116',
+/// 't117'	 't117',
+/// 't17'	 't17',
+/// 't20'	 't20',
+/// 't43'	 't43',
+/// 't45'	 't45',
+/// 't64'	 't64',
+/// 't75'	 't75',
+/// 't79'	 't79',
+/// 't80'	 't80',
+/// 't82'	 't82',
+/// 't83'	 't83',
+/// 't86'	 't86'
+
 fn main() {
     let path = "/home/brent/omsf/chembl/chembl_33.sdf";
     let mut m = SDMolSupplier::new(path);
-    let mut out = File::create("out.smiles").unwrap();
-    let smarts = "[#6X4:1]-[#6X4:2]-[#6X4:3]-[#6X4:4]";
+    // let mut out = File::create("out.smiles").unwrap();
 
     let forcefield = "openff-2.1.0.offxml";
     let ff = ForceField::load(forcefield).unwrap();
     let h = ff.get_parameter_handler("ProperTorsions").unwrap();
-    let mut pairs = Vec::new();
+    let mut params = Vec::new();
     for p in h.parameters() {
-        pairs.push((p.id(), p.smirks()));
+        params.push((p.id(), p.smirks()));
     }
 
     let mut count = 0;
-    while !m.at_end() && count < 50 {
+    while !m.at_end() && count < 1 {
         let mol = m.next();
-        let matches = find_smarts_matches(&mol, smarts);
-        for (i, mat) in matches.iter().enumerate() {
-            println!("Match {i} : {} {} {} {}", mat[0], mat[1], mat[2], mat[3]);
-        }
-        let smiles = mol.to_smiles();
-        writeln!(out, "{smiles}").unwrap();
+        println!("{}", mol.to_smiles());
+        let matches = find_matches(&params, &mol);
+        dbg!(matches);
         count += 1;
     }
+}
+
+#[test]
+fn first_molecule() {
+    let path = "/home/brent/omsf/chembl/chembl_33.sdf";
+    let mut m = SDMolSupplier::new(path);
+
+    let forcefield = "openff-2.1.0.offxml";
+    let ff = ForceField::load(forcefield).unwrap();
+    let h = ff.get_parameter_handler("ProperTorsions").unwrap();
+    let mut params = Vec::new();
+    for p in h.parameters() {
+        params.push((p.id(), p.smirks()));
+    }
+
+    let mol = m.next();
+    let got = find_matches(&params, &mol);
+    let want = vec![
+        "t115", "t116", "t117", "t17", "t20", "t43", "t45", "t64", "t75",
+        "t79", "t80", "t82", "t83", "t86",
+    ];
+    assert_eq!(got, want);
 }
