@@ -123,8 +123,6 @@ pub mod rdkit {
     }
 
     pub fn find_smarts_matches(mol: &ROMol, smarts: &str) -> Vec<Vec<usize>> {
-        dbg!(mol.to_smiles());
-        dbg!(smarts);
         let mut len = 0;
         let mut match_size = 0;
         let smarts = CString::new(smarts).unwrap();
@@ -135,7 +133,7 @@ pub mod rdkit {
                 &mut len,
                 &mut match_size,
             );
-            let matches = Vec::from_raw_parts(dbg!(matches), dbg!(len), len);
+            let matches = Vec::from_raw_parts(matches, len, len);
 
             let mut ret = Vec::new();
             for mat in matches.chunks(match_size) {
