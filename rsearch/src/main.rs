@@ -1,19 +1,16 @@
+use std::fs::File;
 use std::io::Write;
-use std::{
-    ffi::{CStr, CString},
-    fs::File,
-};
 
 use openff_toolkit::ForceField;
-use rdkit::SDMolSupplier;
-use rdkit_sys::{RDKit_MolToSmiles, RDKit_ROMol_delete};
+use rdkit::{find_smarts_matches, SDMolSupplier};
 
 /// TODO move this to its own crate, possibly in a workspace with rdkit-sys
 pub mod rdkit {
-    use std::ffi::CString;
+    use std::ffi::{CStr, CString};
 
     use rdkit_sys::{
-        RDKit_ROMol, RDKit_SDMolSupplier, RDKit_create_mol_supplier,
+        RDKit_MolToSmiles, RDKit_ROMol, RDKit_ROMol_delete,
+        RDKit_SDMolSupplier, RDKit_create_mol_supplier,
         RDKit_delete_mol_supplier, RDKit_mol_supplier_at_end,
         RDKit_mol_supplier_next,
     };
@@ -36,8 +33,8 @@ pub mod rdkit {
             unsafe { RDKit_mol_supplier_at_end(self.0) }
         }
 
-        pub fn next(&mut self) -> *mut RDKit_ROMol {
-            unsafe { RDKit_mol_supplier_next(self.0) }
+        pub fn next(&mut self) -> ROMol {
+            unsafe { ROMol(RDKit_mol_supplier_next(self.0)) }
         }
     }
 
@@ -48,13 +45,54 @@ pub mod rdkit {
             }
         }
     }
+
+    pub struct ROMol(*mut RDKit_ROMol);
+
+    impl ROMol {
+        pub fn to_smiles(self) -> String {
+            unsafe {
+                let smiles = RDKit_MolToSmiles(self.0);
+                let s = CStr::from_ptr(smiles);
+                s.to_str().unwrap().to_owned()
+            }
+        }
+    }
+
+    impl Drop for ROMol {
+        fn drop(&mut self) {
+            unsafe {
+                RDKit_ROMol_delete(self.0);
+            }
+        }
+    }
+
+    pub fn find_smarts_matches(mol: &ROMol, smarts: &str) -> Vec<Vec<usize>> {
+        let mut len = 0;
+        let mut match_size = 0;
+        let smarts = CString::new(smarts).unwrap();
+        unsafe {
+            let matches = rdkit_sys::find_smarts_matches(
+                mol.0,
+                smarts.as_ptr(),
+                &mut len,
+                &mut match_size,
+            );
+            let matches = Vec::from_raw_parts(matches, len, len);
+
+            let mut ret = Vec::new();
+            for mat in matches.chunks(match_size) {
+                ret.push(mat.into_iter().map(|&x| x as usize).collect());
+            }
+            ret
+        }
+    }
 }
 
 fn main() {
     let path = "/home/brent/omsf/chembl/chembl_33.sdf";
     let mut m = SDMolSupplier::new(path);
     let mut out = File::create("out.smiles").unwrap();
-    let smarts = CString::new("[#6X4:1]-[#6X4:2]-[#6X4:3]-[#6X4:4]").unwrap();
+    let smarts = "[#6X4:1]-[#6X4:2]-[#6X4:3]-[#6X4:4]";
 
     let forcefield = "openff-2.1.0.offxml";
     let ff = ForceField::load(forcefield).unwrap();
@@ -64,30 +102,15 @@ fn main() {
         pairs.push((p.id(), p.smirks()));
     }
 
-    unsafe {
-        let mut count = 0;
-        while !m.at_end() && count < 50 {
-            let mol = m.next();
-            let mut len = 0;
-            let mut match_size = 0;
-            let matches = rdkit_sys::find_smarts_matches(
-                mol,
-                smarts.as_ptr(),
-                &mut len,
-                &mut match_size,
-            );
-            let matches = Vec::from_raw_parts(matches, len, len);
-            for (i, mat) in matches.chunks(match_size).enumerate() {
-                println!(
-                    "Match {i} : {} {} {} {}",
-                    mat[0], mat[1], mat[2], mat[3]
-                );
-            }
-            let smiles = RDKit_MolToSmiles(mol);
-            let s = CStr::from_ptr(smiles);
-            writeln!(out, "{}", s.to_str().unwrap()).unwrap();
-            count += 1;
-            RDKit_ROMol_delete(mol);
+    let mut count = 0;
+    while !m.at_end() && count < 50 {
+        let mol = m.next();
+        let matches = find_smarts_matches(&mol, smarts);
+        for (i, mat) in matches.iter().enumerate() {
+            println!("Match {i} : {} {} {} {}", mat[0], mat[1], mat[2], mat[3]);
         }
+        let smiles = mol.to_smiles();
+        writeln!(out, "{smiles}").unwrap();
+        count += 1;
     }
 }
