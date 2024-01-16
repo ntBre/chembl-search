@@ -45,6 +45,17 @@ pub mod rdkit {
         }
     }
 
+    impl Iterator for SDMolSupplier {
+        type Item = ROMol;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.at_end() {
+                return None;
+            }
+            Some(self.next())
+        }
+    }
+
     pub struct ROMol(*mut RDKit_ROMol);
 
     impl ROMol {
