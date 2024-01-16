@@ -15,7 +15,8 @@ from tqdm import tqdm
 logging.getLogger("openff").setLevel(logging.ERROR)
 
 
-forcefield = "../projects/benchmarking/forcefields/tm-tm.offxml"
+# forcefield = "../projects/benchmarking/forcefields/tm-tm.offxml"
+forcefield = "openff-2.1.0.offxml"
 targets = {"t18b"}
 
 ff = ForceField(forcefield, allow_cosmetic_attributes=True)
@@ -48,6 +49,8 @@ def _find_smarts_matches(
     )
     full_matches = rdmol.GetSubstructMatches(qmol, **match_kwargs)
 
+    print("full_matches: ", full_matches)
+
     matches = [tuple(mat[x] for x in map_list) for mat in full_matches]
 
     return matches
@@ -60,6 +63,8 @@ def find_smarts_matches(
     aromaticity_model: str = "OEAroModel_MDL",
     unique: bool = False,
 ) -> list[tuple[int, ...]]:
+    # TODO something important must be happening here because I can't replicate
+    # the substruct matching using rdkit directly in either Python or C++
     rdmol = self._connection_table_to_rdkit(
         molecule, aromaticity_model=aromaticity_model
     )
@@ -100,6 +105,7 @@ def label_molecules(self, molecule) -> set[str]:
 def main(output_file, input_file):
     with open(input_file) as inp, open(output_file, "w") as out:
         for smiles in tqdm(inp, total=2372674):  # from wc -l
+            print(smiles)
             try:
                 mol = Molecule.from_smiles(
                     smiles.strip(), allow_undefined_stereo=True
@@ -107,6 +113,7 @@ def main(output_file, input_file):
             except RadicalsNotSupportedError:
                 continue
             labels = label_molecules(ff, mol)
+            print(labels)
             matching = labels & targets
             if len(matching) > 0:
                 natoms = mol.n_atoms

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rdkit-sys = { path = "../../../Projects/rdkit-sys" }
 openff-toolkit = { path = "../../rust/coprelos/openff-toolkit" }
+bitflags = "2.4.1"
