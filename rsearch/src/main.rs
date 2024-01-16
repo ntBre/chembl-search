@@ -108,24 +108,6 @@ fn find_matches(params: &[(String, String)], mol: &ROMol) -> Vec<String> {
     ret
 }
 
-/// this is what we're hoping to get out, confirmed by default toolkit and
-/// search.py for this smiles Cc1cc(-c2csc(N=C(N)N)n2)cn1C:
-///
-/// 't115'   't115'
-/// 't116'	 't116',
-/// 't117'	 't117',
-/// 't17'	 't17',
-/// 't20'	 't20',
-/// 't43'	 't43',
-/// 't45'	 't45',
-/// 't64'	 't64',
-/// 't75'	 't75',
-/// 't79'	 't79',
-/// 't80'	 't80',
-/// 't82'	 't82',
-/// 't83'	 't83',
-/// 't86'	 't86'
-
 fn main() {
     let path = "/home/brent/omsf/chembl/chembl_33.sdf";
     let mut m = SDMolSupplier::new(path);
@@ -163,6 +145,11 @@ fn first_molecule() {
     }
 
     let mol = m.next();
+
+    let got_smiles = mol.to_smiles();
+    let want_smiles = "Cc1cc(-c2csc(N=C(N)N)n2)cn1C";
+    assert_eq!(got_smiles, want_smiles);
+
     let got = find_matches(&params, &mol);
     let want = vec![
         "t115", "t116", "t117", "t17", "t20", "t43", "t45", "t64", "t75",
