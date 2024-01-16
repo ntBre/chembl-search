@@ -5,7 +5,7 @@ use rsearch::rdkit::{AromaticityModel, SanitizeFlags};
 
 fn main() {
     let path = "/home/brent/omsf/chembl/chembl_33.sdf";
-    let mut m = SDMolSupplier::new(path);
+    let m = SDMolSupplier::new(path);
     // let mut out = File::create("out.smiles").unwrap();
 
     let forcefield = "openff-2.1.0.offxml";
@@ -16,10 +16,7 @@ fn main() {
         params.push((p.id(), p.smirks()));
     }
 
-    let mut count = 0;
-    while !m.at_end() && count < 1 {
-        let mut mol = m.next();
-
+    for mut mol in m.into_iter().take(5) {
         mol.sanitize(
             SanitizeFlags::ALL
                 ^ SanitizeFlags::ADJUSTHS
@@ -29,9 +26,7 @@ fn main() {
         mol.assign_stereochemistry();
         mol.add_hs();
 
-        println!("{}", mol.to_smiles());
         let matches = find_matches(&params, &mol);
         dbg!(matches);
-        count += 1;
     }
 }
