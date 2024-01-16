@@ -31,10 +31,6 @@ pub mod rdkit {
         pub fn at_end(&self) -> bool {
             unsafe { RDKit_mol_supplier_at_end(self.0) }
         }
-
-        pub fn next(&mut self) -> ROMol {
-            unsafe { ROMol(RDKit_mol_supplier_next(self.0)) }
-        }
     }
 
     impl Drop for SDMolSupplier {
@@ -52,7 +48,7 @@ pub mod rdkit {
             if self.at_end() {
                 return None;
             }
-            Some(self.next())
+            Some(unsafe { ROMol(RDKit_mol_supplier_next(self.0)) })
         }
     }
 
@@ -148,7 +144,7 @@ pub mod rdkit {
 
             let mut ret = Vec::new();
             for mat in matches.chunks(match_size) {
-                ret.push(mat.into_iter().map(|&x| x as usize).collect());
+                ret.push(mat.iter().map(|&x| x as usize).collect());
             }
             ret
         }
@@ -201,7 +197,7 @@ mod tests {
             params.push((p.id(), p.smirks()));
         }
 
-        let mut mol = m.next();
+        let mut mol = m.next().unwrap();
 
         mol.sanitize(
             SanitizeFlags::ALL
