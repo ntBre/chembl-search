@@ -3,3 +3,4 @@ __pycache__/
 /cpp/search
 /cpp/tester
 /target/
+/*.smiles
