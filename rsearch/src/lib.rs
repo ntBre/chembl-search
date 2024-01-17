@@ -16,6 +16,8 @@ pub mod rdkit {
 
     pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
 
+    unsafe impl Send for SDMolSupplier {}
+
     impl SDMolSupplier {
         /// construct an [SDMolSupplier] from a filepath that can be converted
         /// to a CString. panics if this conversion fails
@@ -105,6 +107,9 @@ pub mod rdkit {
             }
         }
     }
+
+    unsafe impl Send for ROMol {}
+    unsafe impl Sync for ROMol {}
 
     bitflags! {
         pub struct SanitizeFlags: c_uint {
