@@ -16,6 +16,26 @@ fn load_want(path: &str) -> HashSet<String> {
         .collect()
 }
 
+fn print_output(res: HashMap<String, Vec<String>>) {
+    for (pid, moles) in res {
+        println!("{pid}");
+        for mol in moles {
+            println!("\t{mol}");
+        }
+        println!();
+    }
+}
+
+fn write_output(res: HashMap<String, Vec<String>>) {
+    use std::io::Write;
+    for (pid, moles) in res {
+        let mut f = std::fs::File::create(format!("{pid}.smiles")).unwrap();
+        for mol in moles {
+            writeln!(f, "{mol}").unwrap();
+        }
+    }
+}
+
 #[derive(Parser)]
 struct Cli {
     /// The OpenFF force field to load from the toolkit.
@@ -41,6 +61,11 @@ struct Cli {
     /// detected by rayon.
     #[arg(short, long, default_value_t = 0)]
     threads: usize,
+
+    /// Whether or not to create output files, one for each input parameter. If
+    /// false, print the output to stdout.
+    #[arg(short, long)]
+    write_output: bool,
 }
 
 fn main() {
@@ -96,11 +121,9 @@ fn main() {
         res.entry(pid.to_string()).or_default().push(mol);
     }
 
-    for (pid, moles) in res {
-        println!("{pid}");
-        for mol in moles {
-            println!("\t{mol}");
-        }
-        println!();
+    if cli.write_output {
+        write_output(res);
+    } else {
+        print_output(res);
     }
 }
