@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use openff_toolkit::ForceField;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
 use rsearch::rdkit::{AromaticityModel, SanitizeFlags};
 use rsearch::rdkit::{ROMol, SDMolSupplier};
@@ -27,24 +28,38 @@ fn main() {
 
     let want = load_want("../want.params");
 
+    let results: Vec<_> = m
+        .into_iter()
+        .par_bridge()
+        .map(|mut mol| {
+            mol.sanitize(
+                SanitizeFlags::ALL
+                    ^ SanitizeFlags::ADJUSTHS
+                    ^ SanitizeFlags::SETAROMATICITY,
+            );
+            mol.set_aromaticity(AromaticityModel::MDL);
+            mol.assign_stereochemistry();
+            mol.add_hs();
+
+            let matches: HashSet<_> =
+                find_matches(&params, &mol).into_iter().collect();
+
+            let mut res: HashMap<String, Vec<String>> = HashMap::new();
+            for pid in matches.intersection(&want) {
+                res.entry(pid.to_string())
+                    .or_default()
+                    .push(mol.to_smiles());
+            }
+            res
+        })
+        .collect();
+
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
-    for mut mol in m.into_iter().take(10000) {
-        mol.sanitize(
-            SanitizeFlags::ALL
-                ^ SanitizeFlags::ADJUSTHS
-                ^ SanitizeFlags::SETAROMATICITY,
-        );
-        mol.set_aromaticity(AromaticityModel::MDL);
-        mol.assign_stereochemistry();
-        mol.add_hs();
-
-        let matches: HashSet<_> =
-            find_matches(&params, &mol).into_iter().collect();
-
-        for pid in matches.intersection(&want) {
-            res.entry(pid.to_string())
-                .or_default()
-                .push(mol.to_smiles());
+    for r in results {
+        for (pid, mols) in r {
+            for mol in mols {
+                res.entry(pid.to_string()).or_default().push(mol);
+            }
         }
     }
 
