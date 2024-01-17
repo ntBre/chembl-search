@@ -184,8 +184,6 @@ pub mod rdkit {
     }
 }
 
-type TorsEnv = (usize, usize, usize, usize);
-
 /// returns the set of parameter ids matching `mol`. matching starts with the
 /// first parameter and proceeds through the whole sequence of parameters, so
 /// this should follow the SMIRNOFF typing rules
@@ -193,12 +191,10 @@ pub fn find_matches(
     params: &[(String, ROMol)],
     mol: &ROMol,
 ) -> HashSet<String> {
-    let mut matches: HashMap<TorsEnv, String> = HashMap::new();
+    let mut matches = HashMap::new();
     for (id, smirks) in params {
         let env_matches = find_smarts_matches_mol(mol, smirks);
         for mat in env_matches {
-            assert_eq!(mat.len(), 4);
-            let mat = (mat[0], mat[1], mat[2], mat[3]);
             matches.insert(mat, id.clone());
         }
     }
