@@ -15,4 +15,4 @@ clippy:
 	cargo clippy --workspace --tests
 
 run:
-	cargo run --release
+	cargo run --release -- $(ARGS)
