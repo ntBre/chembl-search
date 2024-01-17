@@ -25,5 +25,3 @@ for mat in matches:
 # mol = Molecule.from_smiles("c1ccccc1O")
 # smarts = "ccO"
 # print("rdkit example: ", find_smarts_matches(wrapper, mol, smarts))
-
-# TODO zip up fb-fit directory and include in Sage 2.2.0
