@@ -88,11 +88,8 @@ fn main() {
     let progress = AtomicUsize::new(0);
 
     let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
-        mol.sanitize(
-            SanitizeFlags::ALL
-                ^ SanitizeFlags::ADJUSTHS
-                ^ SanitizeFlags::SETAROMATICITY,
-        );
+        use SanitizeFlags as S;
+        mol.sanitize(S::ALL ^ S::ADJUSTHS ^ S::SETAROMATICITY);
         mol.set_aromaticity(AromaticityModel::MDL);
         mol.assign_stereochemistry();
         mol.add_hs();
