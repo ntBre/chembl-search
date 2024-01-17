@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::AtomicUsize;
 
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -28,6 +29,8 @@ fn main() {
 
     let want = load_want("../want.params");
 
+    let progress = AtomicUsize::new(0);
+
     let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
         mol.sanitize(
             SanitizeFlags::ALL
@@ -48,6 +51,10 @@ fn main() {
                 smiles = Some(mol.to_smiles());
             }
             res.push((pid.to_string(), smiles.clone().unwrap()));
+        }
+        let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if cur % 24_000 == 0 {
+            eprintln!("{}% complete", cur / 24_000);
         }
         res
     };
