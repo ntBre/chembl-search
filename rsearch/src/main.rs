@@ -1,9 +1,17 @@
-use std::io::Write;
+use std::collections::{HashMap, HashSet};
 
 use openff_toolkit::ForceField;
 use rsearch::find_matches;
-use rsearch::rdkit::SDMolSupplier;
 use rsearch::rdkit::{AromaticityModel, SanitizeFlags};
+use rsearch::rdkit::{ROMol, SDMolSupplier};
+
+fn load_want(path: &str) -> HashSet<String> {
+    std::fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|s| s.trim().to_owned())
+        .collect()
+}
 
 fn main() {
     let path = "/home/brent/omsf/chembl/chembl_33.sdf";
@@ -14,15 +22,13 @@ fn main() {
     let h = ff.get_parameter_handler("ProperTorsions").unwrap();
     let mut params = Vec::new();
     for p in h.parameters() {
-        params.push((p.id(), p.smirks()));
+        params.push((p.id(), ROMol::from_smarts(&p.smirks())));
     }
 
-    // let mut out = std::fs::File::create("out.smiles").unwrap();
-    let mut out = std::io::stdout().lock();
+    let want = load_want("../want.params");
 
-    let want = String::from("t18a");
-
-    for (i, mut mol) in m.into_iter().enumerate() {
+    let mut res: HashMap<String, Vec<String>> = HashMap::new();
+    for mut mol in m.into_iter().take(10000) {
         mol.sanitize(
             SanitizeFlags::ALL
                 ^ SanitizeFlags::ADJUSTHS
@@ -32,9 +38,21 @@ fn main() {
         mol.assign_stereochemistry();
         mol.add_hs();
 
-        let matches = find_matches(&params, &mol);
-        if matches.contains(&want) {
-            writeln!(out, "{i} {}", mol.to_smiles()).unwrap();
+        let matches: HashSet<_> =
+            find_matches(&params, &mol).into_iter().collect();
+
+        for pid in matches.intersection(&want) {
+            res.entry(pid.to_string())
+                .or_default()
+                .push(mol.to_smiles());
         }
+    }
+
+    for (pid, moles) in res {
+        println!("{pid}");
+        for mol in moles {
+            println!("\t{mol}");
+        }
+        println!();
     }
 }

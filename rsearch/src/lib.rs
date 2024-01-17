@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rdkit::{find_smarts_matches, ROMol};
+use rdkit::{find_smarts_matches_mol, ROMol};
 
 /// TODO move this to its own crate, possibly in a workspace with rdkit-sys
 pub mod rdkit {
@@ -9,9 +9,9 @@ pub mod rdkit {
     use bitflags::bitflags;
     use rdkit_sys::{
         RDKit_MolToSmiles, RDKit_ROMol, RDKit_ROMol_delete,
-        RDKit_SDMolSupplier, RDKit_SmilesToMol, RDKit_create_mol_supplier,
-        RDKit_delete_mol_supplier, RDKit_mol_supplier_at_end,
-        RDKit_mol_supplier_next,
+        RDKit_SDMolSupplier, RDKit_SmartsToMol, RDKit_SmilesToMol,
+        RDKit_create_mol_supplier, RDKit_delete_mol_supplier,
+        RDKit_mol_supplier_at_end, RDKit_mol_supplier_next,
     };
 
     pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
@@ -58,6 +58,11 @@ pub mod rdkit {
         pub fn from_smiles(smiles: &str) -> Self {
             let s = CString::new(smiles).expect("failed to create CString");
             unsafe { Self(RDKit_SmilesToMol(s.as_ptr())) }
+        }
+
+        pub fn from_smarts(smarts: &str) -> Self {
+            let s = CString::new(smarts).expect("failed to create CString");
+            unsafe { Self(RDKit_SmartsToMol(s.as_ptr())) }
         }
 
         pub fn to_smiles(&self) -> String {
@@ -149,6 +154,29 @@ pub mod rdkit {
             ret
         }
     }
+
+    pub fn find_smarts_matches_mol(
+        mol: &ROMol,
+        smarts: &ROMol,
+    ) -> Vec<Vec<usize>> {
+        let mut len = 0;
+        let mut match_size = 0;
+        unsafe {
+            let matches = rdkit_sys::find_smarts_matches_mol(
+                mol.0,
+                smarts.0,
+                &mut len,
+                &mut match_size,
+            );
+            let matches = Vec::from_raw_parts(matches, len, len);
+
+            let mut ret = Vec::new();
+            for mat in matches.chunks(match_size) {
+                ret.push(mat.iter().map(|&x| x as usize).collect());
+            }
+            ret
+        }
+    }
 }
 
 type TorsEnv = (usize, usize, usize, usize);
@@ -156,10 +184,10 @@ type TorsEnv = (usize, usize, usize, usize);
 /// returns a vector of parameter ids matching `mol`. matching starts with the
 /// first parameter and proceeds through the whole sequence of parameters, so
 /// this should follow the SMIRNOFF typing rules
-pub fn find_matches(params: &[(String, String)], mol: &ROMol) -> Vec<String> {
+pub fn find_matches(params: &[(String, ROMol)], mol: &ROMol) -> Vec<String> {
     let mut matches: HashMap<TorsEnv, String> = HashMap::new();
     for (id, smirks) in params {
-        let env_matches = find_smarts_matches(mol, smirks);
+        let env_matches = find_smarts_matches_mol(mol, smirks);
         for mat in env_matches {
             assert_eq!(mat.len(), 4);
             let mat = (mat[0], mat[1], mat[2], mat[3]);
@@ -179,8 +207,8 @@ mod tests {
     use crate::{
         find_matches,
         rdkit::{
-            find_smarts_matches, AromaticityModel, ROMol, SDMolSupplier,
-            SanitizeFlags,
+            find_smarts_matches, find_smarts_matches_mol, AromaticityModel,
+            ROMol, SDMolSupplier, SanitizeFlags,
         },
     };
 
@@ -194,7 +222,7 @@ mod tests {
         let h = ff.get_parameter_handler("ProperTorsions").unwrap();
         let mut params = Vec::new();
         for p in h.parameters() {
-            params.push((p.id(), p.smirks()));
+            params.push((p.id(), ROMol::from_smarts(&p.smirks())));
         }
 
         let mut mol = m.next().unwrap();
@@ -236,6 +264,10 @@ mod tests {
             vec![7, 6, 5, 4],
             vec![7, 6, 5, 20],
         ];
+        assert_eq!(got, want);
+
+        let smarts = ROMol::from_smarts("[*:1]-[#16X2,#16X3+1:2]-[#6:3]~[*:4]");
+        let got = find_smarts_matches_mol(&mol, &smarts);
         assert_eq!(got, want);
     }
 }
