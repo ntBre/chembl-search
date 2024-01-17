@@ -28,39 +28,34 @@ fn main() {
 
     let want = load_want("../want.params");
 
-    let results: Vec<_> = m
-        .into_iter()
-        .par_bridge()
-        .map(|mut mol| {
-            mol.sanitize(
-                SanitizeFlags::ALL
-                    ^ SanitizeFlags::ADJUSTHS
-                    ^ SanitizeFlags::SETAROMATICITY,
-            );
-            mol.set_aromaticity(AromaticityModel::MDL);
-            mol.assign_stereochemistry();
-            mol.add_hs();
+    let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
+        mol.sanitize(
+            SanitizeFlags::ALL
+                ^ SanitizeFlags::ADJUSTHS
+                ^ SanitizeFlags::SETAROMATICITY,
+        );
+        mol.set_aromaticity(AromaticityModel::MDL);
+        mol.assign_stereochemistry();
+        mol.add_hs();
 
-            let matches: HashSet<_> =
-                find_matches(&params, &mol).into_iter().collect();
+        let matches: HashSet<_> =
+            find_matches(&params, &mol).into_iter().collect();
 
-            let mut res: HashMap<String, Vec<String>> = HashMap::new();
-            for pid in matches.intersection(&want) {
-                res.entry(pid.to_string())
-                    .or_default()
-                    .push(mol.to_smiles());
+        let mut res: Vec<(String, String)> = Vec::new();
+        let mut smiles = None;
+        for pid in matches.intersection(&want) {
+            if smiles.is_none() {
+                smiles = Some(mol.to_smiles());
             }
-            res
-        })
-        .collect();
+            res.push((pid.to_string(), smiles.clone().unwrap()));
+        }
+        res
+    };
+    let results: Vec<_> = m.into_iter().par_bridge().flat_map(map_op).collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
-    for r in results {
-        for (pid, mols) in r {
-            for mol in mols {
-                res.entry(pid.to_string()).or_default().push(mol);
-            }
-        }
+    for (pid, mol) in results {
+        res.entry(pid.to_string()).or_default().push(mol);
     }
 
     for (pid, moles) in res {
