@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rdkit-sys = { path = "../../../Projects/rdkit-sys" }
-openff-toolkit = { path = "../../rust/coprelos/openff-toolkit" }
+rdkit-sys = { path = "../../Projects/rdkit-sys" }
+openff-toolkit = { path = "../rust/coprelos/openff-toolkit" }
 bitflags = "2.4.1"
 rayon = "1.8.0"

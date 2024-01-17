@@ -27,7 +27,7 @@ fn main() {
         params.push((p.id(), ROMol::from_smarts(&p.smirks())));
     }
 
-    let want = load_want("../want.params");
+    let want = load_want("want.params");
 
     let progress = AtomicUsize::new(0);
 
