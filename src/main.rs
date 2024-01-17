@@ -94,8 +94,7 @@ fn main() {
         mol.assign_stereochemistry();
         mol.add_hs();
 
-        let matches: HashSet<_> =
-            find_matches(&params, &mol).into_iter().collect();
+        let matches = find_matches(&params, &mol);
 
         let mut res: Vec<(String, String)> = Vec::new();
         let mut smiles = None;
