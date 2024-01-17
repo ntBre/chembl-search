@@ -4,7 +4,10 @@ use rdkit::{find_smarts_matches_mol, ROMol};
 
 /// TODO move this to its own crate, possibly in a workspace with rdkit-sys
 pub mod rdkit {
-    use std::ffi::{c_uint, CStr, CString};
+    use std::{
+        collections::HashMap,
+        ffi::{c_uint, CStr, CString},
+    };
 
     use bitflags::bitflags;
     use rdkit_sys::{
@@ -96,6 +99,22 @@ pub mod rdkit {
         pub fn add_hs(&mut self) {
             unsafe {
                 rdkit_sys::RDKit_AddHs(self.0);
+            }
+        }
+
+        pub fn morgan_fingerprint(
+            &self,
+            radius: c_uint,
+        ) -> HashMap<usize, usize> {
+            unsafe {
+                let mut len = 0;
+                let ptr = rdkit_sys::RDKit_MorganFingerprint(
+                    self.0, radius, &mut len,
+                );
+                let v1 = Vec::from_raw_parts(ptr, len, len);
+                v1.into_iter()
+                    .map(|v| (v.bit as usize, v.count as usize))
+                    .collect()
             }
         }
     }
