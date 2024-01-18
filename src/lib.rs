@@ -5,6 +5,7 @@ use rdkit::{find_smarts_matches_mol, ROMol};
 /// TODO move this to its own crate, possibly in a workspace with rdkit-sys
 pub mod rdkit;
 
+pub mod cluster;
 pub mod matrix;
 
 /// returns the set of parameter ids matching `mol`. matching starts with the
