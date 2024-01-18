@@ -262,12 +262,14 @@ fn main() {
 
     let n = fps.len();
     let mut db = Matrix::zeros(n, n);
+    // computing 1 - tanimoto here because dbscan groups items with _low_
+    // distance, rather than high similarity
     for i in 0..n {
-        db[(i, i)] = 1.0;
+        db[(i, i)] = 0.0;
         for j in 0..i {
             let t = tanimoto(&fps[i], &fps[j]);
-            db[(i, j)] = t;
-            db[(j, i)] = t;
+            db[(i, j)] = 1.0 - t;
+            db[(j, i)] = 1.0 - t;
         }
         print!("finished mol {i}\r");
         std::io::stdout().flush().unwrap();
