@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, io::Write};
+use std::fs::read_to_string;
 
 use clap::Parser;
 use rsearch::{
@@ -6,13 +6,6 @@ use rsearch::{
     matrix::Matrix,
     rdkit::{fingerprint::tanimoto, ROMol},
 };
-
-macro_rules! progress {
-    ($($t:tt)*) => {{
-        eprint!($($t)*);
-        std::io::stderr().flush().unwrap();
-    }};
-}
 
 // default parameters from 2020-03-05-OpenFF-Training-Data-Selection
 
@@ -60,7 +53,6 @@ fn main() {
             db[(i, j)] = 1.0 - t;
             db[(j, i)] = 1.0 - t;
         }
-        progress!("finished mol {i}\r");
     }
 
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
