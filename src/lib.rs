@@ -117,6 +117,22 @@ pub mod rdkit {
                     .collect()
             }
         }
+
+        pub fn morgan_fingerprint_bit_vec<const N: usize>(
+            &self,
+            radius: c_uint,
+        ) -> [usize; N] {
+            unsafe {
+                let mut ret = [0; N];
+                rdkit_sys::RDKit_MorganFingerprintBitVector(
+                    self.0,
+                    radius,
+                    N,
+                    ret.as_mut_ptr(),
+                );
+                ret
+            }
+        }
     }
 
     impl Drop for ROMol {
@@ -199,6 +215,41 @@ pub mod rdkit {
                 ret.push(mat.iter().map(|&x| x as usize).collect());
             }
             ret
+        }
+    }
+
+    pub mod fingerprint {
+        /// print `bv` to stdout in 16 groups of 4 per row
+        pub fn print_bit_vec(bv: &[usize]) {
+            for line in bv.chunks(16 * 4) {
+                for chunk in line.chunks(4) {
+                    print!(" ");
+                    for elt in chunk {
+                        print!("{elt}");
+                    }
+                }
+                println!();
+            }
+        }
+
+        /// return the number of bits in the intersection of a and b
+        pub fn intersect(a: &[usize], b: &[usize]) -> usize {
+            let mut ret = 0;
+            for (a, b) in a.iter().zip(b) {
+                ret += a & b;
+            }
+            ret
+        }
+
+        /// Computes the Tanimoto distance between bit vectors a and b
+        ///
+        /// T(a, b) = (a ∩ b) / (a + b - a ∩ b), at least according to
+        /// featurebase.com/blog/tanimoto-and-chemical-similarity-in-featurebase
+        pub fn tanimoto(a: &[usize], b: &[usize]) -> f64 {
+            let num = intersect(a, b);
+            let den: usize =
+                a.iter().sum::<usize>() + b.iter().sum::<usize>() - num;
+            num as f64 / den as f64
         }
     }
 }
