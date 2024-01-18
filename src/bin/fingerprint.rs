@@ -248,11 +248,16 @@ fn main() {
     //  4245 t18a.smiles
     //     8 t18b.smiles
     //    14 t87a.smiles
-    for smiles in read_to_string("t138a.smiles").unwrap().lines() {
+    // let inp = "t138a.smiles";
+    let inp = "t18a.smiles";
+    // let inp = "t87a.smiles";
+    for smiles in read_to_string(inp).unwrap().lines() {
         let mol = ROMol::from_smiles(smiles);
-        let fp = mol.morgan_fingerprint_bit_vec::<1024>(4);
+        let fp = mol.morgan_fingerprint_bit_vec::<4096>(4);
         fps.push(fp);
     }
+
+    let start = std::time::Instant::now();
 
     let n = fps.len();
     let mut db = Matrix::zeros(n, n);
@@ -266,10 +271,21 @@ fn main() {
         print!("finished mol {i}\r");
         std::io::stdout().flush().unwrap();
     }
-    println!();
 
-    // parameters taken from 2020-03-05-OpenFF-Training-Data-Selection notebook
+    // println!("{db}");
+    println!(
+        "finished tanimoto after {:.1} s",
+        start.elapsed().as_millis() as f64 / 1000.0
+    );
+
+    // default parameters from 2020-03-05-OpenFF-Training-Data-Selection
+    // notebook are eps=0.5, min_pts=5
     let labels = dbscan(&db, 0.5, 5);
 
-    dbg!(labels);
+    for group in labels.chunks(20) {
+        for g in group {
+            print!("{g:?}");
+        }
+        println!();
+    }
 }
