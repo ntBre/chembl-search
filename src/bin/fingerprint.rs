@@ -153,7 +153,13 @@ fn test_dbscan() {
 
 fn main() {
     let mut fps = Vec::new();
-    for smiles in read_to_string("t18a.smiles").unwrap().lines() {
+    // line counts for possible input smiles
+    // 17562 t123a.smiles
+    //    96 t138a.smiles
+    //  4245 t18a.smiles
+    //     8 t18b.smiles
+    //    14 t87a.smiles
+    for smiles in read_to_string("t138a.smiles").unwrap().lines() {
         let mol = ROMol::from_smiles(smiles);
         let fp = mol.morgan_fingerprint_bit_vec::<1024>(4);
         fps.push(fp);
@@ -171,8 +177,7 @@ fn main() {
         print!("finished mol {i}\r");
         std::io::stdout().flush().unwrap();
     }
-
-    // println!("distance matrix:\n{}", db);
+    println!();
 
     // parameters taken from 2020-03-05-OpenFF-Training-Data-Selection notebook
     let labels = dbscan(&db, 0.5, 5);
