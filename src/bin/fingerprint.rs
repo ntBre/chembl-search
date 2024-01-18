@@ -8,6 +8,7 @@ use std::{
 
 use rsearch::rdkit::{fingerprint::tanimoto, ROMol};
 
+#[derive(Debug, PartialEq)]
 struct Matrix<T>(Vec<Vec<T>>);
 
 impl<T: Default + Clone> Matrix<T> {
@@ -174,6 +175,58 @@ fn test_dbscan() {
         })
         .collect();
     assert_eq!(got, want);
+}
+
+#[test]
+fn test_tanimoto() {
+    let mut fps = Vec::new();
+    for smiles in read_to_string("testfiles/t18b.smiles").unwrap().lines() {
+        let mol = ROMol::from_smiles(smiles);
+        let fp = mol.morgan_fingerprint_bit_vec::<1024>(4);
+        fps.push(fp);
+    }
+
+    let n = fps.len();
+    let mut got = Matrix::zeros(n, n);
+    for i in 0..n {
+        got[(i, i)] = 1.0;
+        for j in 0..i {
+            let t = tanimoto(&fps[i], &fps[j]);
+            got[(i, j)] = t;
+            got[(j, i)] = t;
+        }
+    }
+
+    let want = vec![
+        vec![
+            1.0000, 0.0652, 0.0526, 0.0693, 0.9167, 0.0500, 0.0490, 0.0490,
+        ],
+        vec![
+            0.0652, 1.0000, 0.0610, 0.8958, 0.0659, 0.0529, 0.0647, 0.0710,
+        ],
+        vec![
+            0.0526, 0.0610, 1.0000, 0.0888, 0.0532, 0.5210, 0.5250, 0.6789,
+        ],
+        vec![
+            0.0693, 0.8958, 0.0888, 1.0000, 0.0700, 0.0678, 0.0791, 0.0914,
+        ],
+        vec![
+            0.9167, 0.0659, 0.0532, 0.0700, 1.0000, 0.0505, 0.0495, 0.0495,
+        ],
+        vec![
+            0.0500, 0.0529, 0.5210, 0.0678, 0.0505, 1.0000, 0.5537, 0.4803,
+        ],
+        vec![
+            0.0490, 0.0647, 0.5250, 0.0791, 0.0495, 0.5537, 1.0000, 0.6102,
+        ],
+        vec![
+            0.0490, 0.0710, 0.6789, 0.0914, 0.0495, 0.4803, 0.6102, 1.0000,
+        ],
+    ];
+
+    let g: Vec<_> = got.0.iter().flatten().collect();
+    let w: Vec<_> = want.iter().flatten().collect();
+    approx::assert_abs_diff_eq!(g.as_slice(), w.as_slice(), epsilon = 1e-4);
 }
 
 fn main() {
