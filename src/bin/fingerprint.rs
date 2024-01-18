@@ -122,6 +122,31 @@ fn range_query(db: &Matrix<f64>, p: usize, eps: f64) -> HashSet<usize> {
     n
 }
 
+/// the input matrix and output results are taken from this page:
+/// scikit-learn.org/stable/auto_examples/cluster/plot_dbscan.html, with the
+/// distances precomputed using this code:
+/// ``` python
+/// import numpy as np
+/// from sklearn import metrics
+/// from sklearn.cluster import DBSCAN
+/// from sklearn.datasets import make_blobs
+/// from sklearn.preprocessing import StandardScaler
+///
+/// centers = [[1, 1], [-1, -1], [1, -1]]
+/// X, labels_true = make_blobs(
+///     n_samples=750, centers=centers, cluster_std=0.4, random_state=0
+/// )
+///
+/// X = StandardScaler().fit_transform(X)
+///
+/// dist = np.zeros((len(X), len(X)))
+/// for i in range(len(X)):
+///     for j in range(len(X)):
+///         dist[(i, j)] = np.linalg.norm(X[i] - X[j])
+///
+/// db = DBSCAN(eps=0.3, min_samples=10, metric="precomputed").fit(dist)
+/// labels = db.labels_
+/// ```
 #[test]
 fn test_dbscan() {
     let s = read_to_string("testfiles/dist.mat").unwrap();
