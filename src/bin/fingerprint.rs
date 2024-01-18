@@ -1,56 +1,9 @@
-use std::{
-    collections::HashSet,
-    fmt::Display,
-    fs::read_to_string,
-    io::Write,
-    ops::{Index, IndexMut},
+use std::{collections::HashSet, fs::read_to_string, io::Write};
+
+use rsearch::{
+    matrix::Matrix,
+    rdkit::{fingerprint::tanimoto, ROMol},
 };
-
-use rsearch::rdkit::{fingerprint::tanimoto, ROMol};
-
-#[derive(Debug, PartialEq)]
-struct Matrix<T>(Vec<Vec<T>>);
-
-impl<T: Default + Clone> Matrix<T> {
-    fn zeros(rows: usize, cols: usize) -> Self {
-        Self(vec![vec![T::default(); cols]; rows])
-    }
-}
-
-impl<T> Matrix<T> {
-    /// (rows, cols)
-    fn shape(&self) -> (usize, usize) {
-        (self.0.len(), self.0.get(0).map(|v| v.len()).unwrap_or(0))
-    }
-}
-
-impl<T> Index<(usize, usize)> for Matrix<T> {
-    type Output = T;
-
-    fn index(&self, (x, y): (usize, usize)) -> &Self::Output {
-        &self.0[x][y]
-    }
-}
-
-impl<T> IndexMut<(usize, usize)> for Matrix<T> {
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Self::Output {
-        &mut self.0[x][y]
-    }
-}
-
-impl<T: Display> Display for Matrix<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let width = f.width().unwrap_or(8);
-        let prec = f.precision().unwrap_or(4);
-        for row in &self.0 {
-            for col in row {
-                write!(f, "{col:width$.prec$}")?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-}
 
 #[derive(Clone, Copy, Default, PartialEq)]
 enum Label {
@@ -126,7 +79,8 @@ fn dbscan(db: &Matrix<f64>, eps: f64, min_pts: usize) -> Vec<Label> {
 
 fn range_query(db: &Matrix<f64>, p: usize, eps: f64) -> HashSet<usize> {
     let mut n = HashSet::new();
-    for q in 0..db.0[p].len() {
+    let (_, c) = db.shape();
+    for q in 0..c {
         if db[(p, q)] <= eps {
             n.insert(q);
         }
@@ -171,7 +125,7 @@ fn test_dbscan() {
         );
     }
 
-    let m = Matrix(v);
+    let m = Matrix::new(v);
     let got = dbscan(&m, 0.3, 10);
     let want: Vec<Label> = read_to_string("testfiles/dist.want")
         .unwrap()
@@ -208,7 +162,7 @@ fn test_tanimoto() {
         }
     }
 
-    let want = vec![
+    let want = [
         vec![
             1.0000, 0.0652, 0.0526, 0.0693, 0.9167, 0.0500, 0.0490, 0.0490,
         ],
@@ -235,7 +189,7 @@ fn test_tanimoto() {
         ],
     ];
 
-    let g: Vec<_> = got.0.iter().flatten().collect();
+    let g: Vec<_> = got.data().iter().flatten().collect();
     let w: Vec<_> = want.iter().flatten().collect();
     approx::assert_abs_diff_eq!(g.as_slice(), w.as_slice(), epsilon = 1e-4);
 }
@@ -275,7 +229,6 @@ fn main() {
         std::io::stdout().flush().unwrap();
     }
 
-    // println!("{db}");
     println!(
         "finished tanimoto after {:.1} s",
         start.elapsed().as_millis() as f64 / 1000.0
