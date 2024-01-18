@@ -252,8 +252,9 @@ fn main() {
     let inp = "t18a.smiles";
     // let inp = "t87a.smiles";
     for smiles in read_to_string(inp).unwrap().lines() {
-        let mol = ROMol::from_smiles(smiles);
-        let fp = mol.morgan_fingerprint_bit_vec::<4096>(4);
+        let mut mol = ROMol::from_smiles(smiles);
+        mol.openff_clean();
+        let fp = mol.morgan_fingerprint_bit_vec::<1024>(4);
         fps.push(fp);
     }
 
