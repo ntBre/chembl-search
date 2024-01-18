@@ -5,7 +5,6 @@ use clap::Parser;
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
-use rsearch::rdkit::{AromaticityModel, SanitizeFlags};
 use rsearch::rdkit::{ROMol, SDMolSupplier};
 
 fn load_want(path: &str) -> HashSet<String> {
@@ -88,11 +87,7 @@ fn main() {
     let progress = AtomicUsize::new(0);
 
     let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
-        use SanitizeFlags as S;
-        mol.sanitize(S::ALL ^ S::ADJUSTHS ^ S::SETAROMATICITY);
-        mol.set_aromaticity(AromaticityModel::MDL);
-        mol.assign_stereochemistry();
-        mol.add_hs();
+        mol.openff_clean();
 
         let matches = find_matches(&params, &mol);
 

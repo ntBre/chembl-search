@@ -5,10 +5,10 @@ use std::{
 
 use bitflags::bitflags;
 use rdkit_sys::{
-    RDKit_MolToSmiles, RDKit_ROMol, RDKit_ROMol_delete,
-    RDKit_SDMolSupplier, RDKit_SmartsToMol, RDKit_SmilesToMol,
-    RDKit_create_mol_supplier, RDKit_delete_mol_supplier,
-    RDKit_mol_supplier_at_end, RDKit_mol_supplier_next,
+    RDKit_MolToSmiles, RDKit_ROMol, RDKit_ROMol_delete, RDKit_SDMolSupplier,
+    RDKit_SmartsToMol, RDKit_SmilesToMol, RDKit_create_mol_supplier,
+    RDKit_delete_mol_supplier, RDKit_mol_supplier_at_end,
+    RDKit_mol_supplier_next,
 };
 
 pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
@@ -96,15 +96,25 @@ impl ROMol {
         }
     }
 
-    pub fn morgan_fingerprint(
-        &self,
-        radius: c_uint,
-    ) -> HashMap<usize, usize> {
+    /// performs the sequence of cleaning operations used by the openff-toolkit:
+    /// sanitize the molecule with ALL ^ ADJUSTHS ^ SETAROMATICITY, set
+    /// aromaticity to MDL, assign stereochemistry, and add hydrogens.
+    pub fn openff_clean(&mut self) {
+        self.sanitize(
+            SanitizeFlags::ALL
+                ^ SanitizeFlags::ADJUSTHS
+                ^ SanitizeFlags::SETAROMATICITY,
+        );
+        self.set_aromaticity(AromaticityModel::MDL);
+        self.assign_stereochemistry();
+        self.add_hs();
+    }
+
+    pub fn morgan_fingerprint(&self, radius: c_uint) -> HashMap<usize, usize> {
         unsafe {
             let mut len = 0;
-            let ptr = rdkit_sys::RDKit_MorganFingerprint(
-                self.0, radius, &mut len,
-            );
+            let ptr =
+                rdkit_sys::RDKit_MorganFingerprint(self.0, radius, &mut len);
             let v1 = Vec::from_raw_parts(ptr, len, len);
             v1.into_iter()
                 .map(|v| (v.bit as usize, v.count as usize))
@@ -189,10 +199,7 @@ pub fn find_smarts_matches(mol: &ROMol, smarts: &str) -> Vec<Vec<usize>> {
     }
 }
 
-pub fn find_smarts_matches_mol(
-    mol: &ROMol,
-    smarts: &ROMol,
-) -> Vec<Vec<usize>> {
+pub fn find_smarts_matches_mol(mol: &ROMol, smarts: &ROMol) -> Vec<Vec<usize>> {
     let mut len = 0;
     let mut match_size = 0;
     unsafe {

@@ -29,8 +29,7 @@ mod tests {
     use crate::{
         find_matches,
         rdkit::{
-            find_smarts_matches, find_smarts_matches_mol, AromaticityModel,
-            ROMol, SDMolSupplier, SanitizeFlags,
+            find_smarts_matches, find_smarts_matches_mol, ROMol, SDMolSupplier,
         },
     };
 
@@ -48,15 +47,7 @@ mod tests {
         }
 
         let mut mol = m.next().unwrap();
-
-        mol.sanitize(
-            SanitizeFlags::ALL
-                ^ SanitizeFlags::ADJUSTHS
-                ^ SanitizeFlags::SETAROMATICITY,
-        );
-        mol.set_aromaticity(AromaticityModel::MDL);
-        mol.assign_stereochemistry();
-        mol.add_hs();
+        mol.openff_clean();
 
         let got = find_matches(&params, &mol);
         let want = vec![
@@ -69,15 +60,7 @@ mod tests {
     #[test]
     fn single_match() {
         let mut mol = ROMol::from_smiles("Cc1cc(-c2csc(N=C(N)N)n2)cn1C");
-        mol.sanitize(
-            SanitizeFlags::ALL
-                ^ SanitizeFlags::ADJUSTHS
-                ^ SanitizeFlags::SETAROMATICITY,
-        );
-
-        mol.set_aromaticity(AromaticityModel::MDL);
-        mol.assign_stereochemistry();
-        mol.add_hs();
+        mol.openff_clean();
         let smarts = "[*:1]-[#16X2,#16X3+1:2]-[#6:3]~[*:4]"; // t115
         let got = find_smarts_matches(&mol, smarts);
         let want = vec![
