@@ -52,12 +52,23 @@ impl<T: Display> Display for Matrix<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 enum Label {
     Cluster(usize),
     Noise,
     #[default]
     None,
+}
+
+impl std::fmt::Debug for Label {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let w = f.width().unwrap_or(4);
+        match self {
+            Label::Cluster(n) => write!(f, "{n:w$}"),
+            Label::Noise => write!(f, "{:>w$}", "-1"),
+            Label::None => write!(f, "{:>w$}", "N"),
+        }
+    }
 }
 
 /// takes a distance matrix and DBSCAN parameters `eps` and `min_pts`. Using the
