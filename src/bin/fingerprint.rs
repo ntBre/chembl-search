@@ -57,7 +57,13 @@ fn main() {
 
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
-    // TODO some kind of useful output
+    // TODO some kind of useful output - some way of organizing output by chunk?
+    // report some statistics like in the notebook: number of clusters, noise
+    // points removed, number of molecules in each cluster. then we really want
+    // to find centroids of the clusters and select those molecules? or some
+    // number nearest to the centroid? it would also be nice to generate images
+    // of the candidate molecules - bindings to SVG stuff from rdkit and
+    // probably just generate html pages
     for group in labels.chunks(20) {
         for g in group {
             print!("{g:?}");
