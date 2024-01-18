@@ -125,9 +125,9 @@ impl ROMol {
     pub fn morgan_fingerprint_bit_vec<const N: usize>(
         &self,
         radius: c_uint,
-    ) -> [usize; N] {
+    ) -> [bool; N] {
         unsafe {
-            let mut ret = [0; N];
+            let mut ret = [false; N];
             rdkit_sys::RDKit_MorganFingerprintBitVector(
                 self.0,
                 radius,
@@ -234,22 +234,25 @@ pub mod fingerprint {
     }
 
     /// return the number of bits in the intersection of a and b
-    pub fn intersect(a: &[usize], b: &[usize]) -> usize {
+    pub fn intersect(a: &[bool], b: &[bool]) -> usize {
         let mut ret = 0;
         for (a, b) in a.iter().zip(b) {
-            ret += a & b;
+            ret += (a & b) as usize;
         }
         ret
+    }
+
+    fn count(b: &[bool]) -> usize {
+        b.iter().fold(0, |acc, &b| acc + b as usize)
     }
 
     /// Computes the Tanimoto distance between bit vectors a and b
     ///
     /// T(a, b) = (a ∩ b) / (a + b - a ∩ b), at least according to
     /// featurebase.com/blog/tanimoto-and-chemical-similarity-in-featurebase
-    pub fn tanimoto(a: &[usize], b: &[usize]) -> f64 {
+    pub fn tanimoto(a: &[bool], b: &[bool]) -> f64 {
         let num = intersect(a, b);
-        let den: usize =
-            a.iter().sum::<usize>() + b.iter().sum::<usize>() - num;
+        let den: usize = count(a) + count(b) - num;
         num as f64 / den as f64
     }
 }
