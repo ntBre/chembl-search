@@ -89,4 +89,28 @@ fn main() {
     for (i, c) in clusters.iter().enumerate() {
         println!("Cluster {i}: {} members", c.len());
     }
+
+    // since I don't really have a direct measure of distance for an individual
+    // molecule, use their distance from molecule 0 to compute the centroid
+    for (i, cluster) in clusters.iter().enumerate() {
+        let mut centroid = 0.0;
+        for mem in cluster {
+            centroid += db[(0, *mem)];
+        }
+        centroid /= cluster.len() as f64;
+
+        let mut min_idx = 0;
+        let mut min_val = db[(0, min_idx)];
+        for mem in cluster {
+            if db[(0, *mem)] < min_val {
+                min_val = db[(0, *mem)];
+                min_idx = *mem;
+            }
+        }
+
+        assert_eq!(min_idx, 0);
+        println!("Cluster {i}: centroid = {centroid:.4}");
+        println!("Centroid molecule:");
+        println!("{}", min_idx);
+    }
 }
