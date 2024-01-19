@@ -1,29 +1,39 @@
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, fs::File, path::Path};
 
-use openff_qcsubmit::results::OptimizationResultCollection;
+use openff_qcsubmit::results::{
+    BaseResultCollection, OptimizationResultCollection,
+    TorsionDriveResultCollection,
+};
 use rsearch::rdkit::ROMol;
 
-fn main() {
-    let base = Path::new(
-        "/home/brent/omsf/projects/valence-fitting/02_curate-data/datasets",
-    );
-    let sage_tm_opt = base.join("combined-opt.json");
-    assert!(sage_tm_opt.exists(), "{:?}", sage_tm_opt);
-    let tm_opt = OptimizationResultCollection::parse_file(sage_tm_opt).unwrap();
-    let inchis: HashSet<_> = tm_opt
-        .entries()
-        .into_values()
-        .flatten()
-        .map(|e| e.inchi_key())
-        .collect();
-    let my_inchis: HashSet<_> = tm_opt
+fn load_inchis<T>(path: impl AsRef<Path>) -> HashSet<String>
+where
+    T: BaseResultCollection,
+{
+    T::parse_file(path)
+        .unwrap()
         .entries()
         .into_values()
         .flatten()
         .map(|e| ROMol::from_smiles(&e.cmiles()).to_inchi_key())
-        .collect();
-    // my_inchis only contains 1663 instead of 1675
-    assert_eq!(inchis.len(), my_inchis.len());
-    assert_eq!(inchis, my_inchis);
-    println!("hello, world");
+        .collect()
+}
+
+fn main() {
+    let base = Path::new("/home/brent/omsf/projects");
+    let vf = base.join("valence-fitting/02_curate-data/datasets");
+
+    let sage_tm_opt = vf.join("combined-opt.json");
+    let sage_tm_td = vf.join("combined-td.json");
+    let bench = base.join("benchmarking/datasets/industry.json");
+
+    let mut total = load_inchis::<OptimizationResultCollection>(sage_tm_opt);
+    total.extend(load_inchis::<TorsionDriveResultCollection>(sage_tm_td));
+    total.extend(load_inchis::<OptimizationResultCollection>(bench));
+
+    use std::io::Write;
+    let mut out = File::create("inchis.dat").unwrap();
+    for mol in total {
+        writeln!(out, "{mol}").unwrap();
+    }
 }

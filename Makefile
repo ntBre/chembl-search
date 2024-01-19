@@ -14,7 +14,7 @@ fingerprint:
 	cargo run --bin fingerprint --release -- t18a.smiles --min-pts 10
 
 # generate a set of inchi keys for our existing training and benchmark datasets
-inchis:
+inchis.dat: src/bin/inchis.rs
 	cargo run --bin inchis --release
 
 test:
