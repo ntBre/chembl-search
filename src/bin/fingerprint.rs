@@ -123,18 +123,22 @@ fn main() -> std::io::Result<()> {
     // bench: 154
     const MAX_ATOMS: usize = 154;
 
-    // filter out molecules larger than MAX_ATOMS and then any empty clusters
+    let existing_inchis: HashSet<_> = read_to_string("inchis.dat")
+        .unwrap()
+        .split_ascii_whitespace()
+        .map(|s| s.to_owned())
+        .collect();
+    let new_inchis: Vec<_> = mols.iter().map(ROMol::to_inchi_key).collect();
+
+    // filter out molecules larger than MAX_ATOMS or with inchi_keys already
+    // covered by our existing data sets; then filter any empty clusters
     clusters.iter_mut().for_each(|cluster| {
-        cluster.retain(|mol_idx| mols[*mol_idx].num_atoms() <= MAX_ATOMS);
+        cluster.retain(|mol_idx| {
+            mols[*mol_idx].num_atoms() <= MAX_ATOMS
+                && !existing_inchis.contains(&new_inchis[*mol_idx])
+        });
     });
     clusters.retain(|c| !c.is_empty());
-
-    // TODO filter out any molecules already in our training or benchmark sets
-    // - [ ] get inchi keys for those
-    // - [x] get inchi keys for ROMOls
-    // - [ ] filter out any overlap
-
-    let _inchis: HashSet<_> = mols.iter().map(ROMol::to_inchi_key).collect();
 
     // TODO highlight involved atoms - this will require additional printing in
     // the original search, maybe tsv of smiles and involved atoms
