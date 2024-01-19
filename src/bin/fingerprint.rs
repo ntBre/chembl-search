@@ -96,8 +96,7 @@ fn main() {
     for (i, c) in clusters.iter().enumerate() {
         let smile = smiles[c[0]];
         let svg = mols[c[0]].draw_svg(400, 300, &smile[..60], &[]);
-        writeln!(out, "<h1>Cluster {i} Centroid Molecule</h1>\n{svg}\n</svg>")
-            .unwrap();
+        writeln!(out, "<h1>Cluster {i}</h1>{svg}").unwrap();
     }
     writeln!(out, "</html>").unwrap();
 }
