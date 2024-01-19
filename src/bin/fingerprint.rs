@@ -1,4 +1,4 @@
-use std::fs::read_to_string;
+use std::{fs::read_to_string, path::Path};
 
 use clap::Parser;
 use rsearch::{
@@ -7,8 +7,41 @@ use rsearch::{
     rdkit::{fingerprint::tanimoto, ROMol},
 };
 
-// default parameters from 2020-03-05-OpenFF-Training-Data-Selection
+fn write_report(
+    path: impl AsRef<Path>,
+    max: &usize,
+    nfps: usize,
+    noise: usize,
+    clusters: Vec<Vec<usize>>,
+    smiles: Vec<&str>,
+    mols: Vec<ROMol>,
+) -> Result<(), std::io::Error> {
+    use std::io::Write;
+    let mut out = std::fs::File::create(path).unwrap();
+    writeln!(out, "<html>")?;
+    writeln!(
+        out,
+        "{nfps} molecules, {max} clusters, {noise} noise points, \
+        pruned {} empty clusters",
+        max + 1 - clusters.len()
+    )?;
+    for (i, c) in clusters.iter().enumerate() {
+        let smile = smiles[c[0]];
+        let mol = &mols[c[0]];
+        let svg = mol.draw_svg(400, 300, "", &[]);
+        writeln!(out, "<h1>Cluster {i}</h1>")?;
+        writeln!(out, "<p>Molecule 1/{}</p>", c.len())?;
+        writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
+        writeln!(out, "<p>SMILES: {smile}</p>")?;
+        writeln!(out, "{svg}")?;
+    }
+    writeln!(out, "</html>")?;
+    Ok(())
+}
 
+/// The default DBSCAN parameters are taken from the
+/// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
+/// qca-dataset-submission repo commit 79ee3a3
 #[derive(Parser)]
 struct Cli {
     /// The file of SMILES strings to read as input, one SMILES per line.
@@ -88,33 +121,23 @@ fn main() -> std::io::Result<()> {
     // sage-tm opt: 76
     // sage-tm td: 67
     // bench: 154
+    const MAX_ATOMS: usize = 154;
 
-    // TODO consider molecule size, not just centroid. some of these centroids
-    // are way too big
+    // filter out molecules larger than MAX_ATOMS and then any empty clusters
+    clusters.iter_mut().for_each(|cluster| {
+        cluster.retain(|mol_idx| mols[*mol_idx].num_atoms() <= MAX_ATOMS);
+    });
+    clusters.retain(|c| !c.is_empty());
+
+    // TODO filter out any molecules already in our training or benchmark sets
+    // - get inchi keys for those
+    // - get inchi keys for ROMOls
+    // - filter out any overlap
 
     // TODO highlight involved atoms - this will require additional printing in
     // the original search, maybe tsv of smiles and involved atoms
 
-    use std::io::Write;
-    let mut out = std::fs::File::create("prints.html").unwrap();
-    writeln!(out, "<html>")?;
-
-    writeln!(
-        out,
-        "{nfps} molecules, {max} clusters, {noise} noise points"
-    )?;
-
-    for (i, c) in clusters.iter().enumerate() {
-        let smile = smiles[c[0]];
-        let mol = &mols[c[0]];
-        let svg = mol.draw_svg(400, 300, "", &[]);
-        writeln!(out, "<h1>Cluster {i}</h1>")?;
-        writeln!(out, "<p>Molecule 0/{}</p>", c.len())?;
-        writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
-        writeln!(out, "<p>SMILES: {smile}</p>")?;
-        writeln!(out, "{svg}")?;
-    }
-    writeln!(out, "</html>")?;
+    write_report("prints.html", max, nfps, noise, clusters, smiles, mols)?;
 
     Ok(())
 }
