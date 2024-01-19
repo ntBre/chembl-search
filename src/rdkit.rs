@@ -72,6 +72,10 @@ impl ROMol {
         }
     }
 
+    pub fn num_atoms(&self) -> usize {
+        unsafe { rdkit_sys::RDKit_ROMol_getNumAtoms(self.0) as usize }
+    }
+
     pub fn sanitize(&mut self, ops: SanitizeFlags) {
         unsafe {
             rdkit_sys::RDKit_SanitizeMol(self.0, ops.bits());

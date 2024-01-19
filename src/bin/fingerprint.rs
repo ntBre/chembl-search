@@ -29,7 +29,7 @@ struct Cli {
     radius: u32,
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
     let s = read_to_string(cli.smiles_file).unwrap();
@@ -84,19 +84,37 @@ fn main() {
         }
     }
 
+    // largest molecule in current training and benchmark sets:
+    // sage-tm opt: 76
+    // sage-tm td: 67
+    // bench: 154
+
+    // TODO consider molecule size, not just centroid. some of these centroids
+    // are way too big
+
+    // TODO highlight involved atoms - this will require additional printing in
+    // the original search, maybe tsv of smiles and involved atoms
+
     use std::io::Write;
     let mut out = std::fs::File::create("prints.html").unwrap();
-    writeln!(out, "<html>").unwrap();
+    writeln!(out, "<html>")?;
 
     writeln!(
         out,
         "{nfps} molecules, {max} clusters, {noise} noise points"
-    )
-    .unwrap();
+    )?;
+
     for (i, c) in clusters.iter().enumerate() {
         let smile = smiles[c[0]];
-        let svg = mols[c[0]].draw_svg(400, 300, &smile[..60], &[]);
-        writeln!(out, "<h1>Cluster {i}</h1>{svg}").unwrap();
+        let mol = &mols[c[0]];
+        let svg = mol.draw_svg(400, 300, "", &[]);
+        writeln!(out, "<h1>Cluster {i}</h1>")?;
+        writeln!(out, "<p>Molecule 0/{}</p>", c.len())?;
+        writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
+        writeln!(out, "<p>SMILES: {smile}</p>")?;
+        writeln!(out, "{svg}")?;
     }
-    writeln!(out, "</html>").unwrap();
+    writeln!(out, "</html>")?;
+
+    Ok(())
 }
