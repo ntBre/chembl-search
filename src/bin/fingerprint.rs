@@ -32,9 +32,10 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let fps: Vec<_> = read_to_string(cli.smiles_file)
-        .unwrap()
-        .lines()
+    let s = read_to_string(cli.smiles_file).unwrap();
+    let smiles: Vec<_> = s.lines().collect();
+    let fps: Vec<_> = smiles
+        .iter()
         .map(|smiles| {
             let mut mol = ROMol::from_smiles(smiles);
             mol.openff_clean();
@@ -58,10 +59,8 @@ fn main() {
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
     // TODO some kind of useful output - some way of organizing output by chunk?
-    // then we really want to find centroids of the clusters and select those
-    // molecules? or some number nearest to the centroid? it would also be nice
-    // to generate images of the candidate molecules - bindings to SVG stuff
-    // from rdkit and probably just generate html pages
+    // it would also be nice to generate images of the candidate molecules -
+    // bindings to SVG stuff from rdkit and probably just generate html pages
 
     let max = labels
         .iter()
@@ -88,29 +87,7 @@ fn main() {
     println!("{nfps} molecules, {max} clusters, {noise} noise points");
     for (i, c) in clusters.iter().enumerate() {
         println!("Cluster {i}: {} members", c.len());
-    }
-
-    // since I don't really have a direct measure of distance for an individual
-    // molecule, use their distance from molecule 0 to compute the centroid
-    for (i, cluster) in clusters.iter().enumerate() {
-        let mut centroid = 0.0;
-        for mem in cluster {
-            centroid += db[(0, *mem)];
-        }
-        centroid /= cluster.len() as f64;
-
-        let mut min_idx = 0;
-        let mut min_val = db[(0, min_idx)];
-        for mem in cluster {
-            if db[(0, *mem)] < min_val {
-                min_val = db[(0, *mem)];
-                min_idx = *mem;
-            }
-        }
-
-        assert_eq!(min_idx, 0);
-        println!("Cluster {i}: centroid = {centroid:.4}");
         println!("Centroid molecule:");
-        println!("{}", min_idx);
+        println!("{}", smiles[c[0]]);
     }
 }
