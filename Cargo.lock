@@ -353,6 +353,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openff-qcsubmit"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "qcportal",
+ "utils",
+]
+
+[[package]]
 name = "openff-toolkit"
 version = "0.1.0"
 dependencies = [
@@ -487,6 +496,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "qcportal"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -567,6 +583,7 @@ dependencies = [
  "approx",
  "bitflags 2.4.1",
  "clap",
+ "openff-qcsubmit",
  "openff-toolkit",
  "rayon",
  "rdkit-sys",

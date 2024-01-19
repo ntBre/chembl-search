@@ -8,6 +8,15 @@ RDKIT_PATH = /home/brent/omsf/clone/rdkit
 
 export LD_LIBRARY_PATH=$(RDKIT_SYS_PATH):$(RDKIT_PATH)/build/lib
 
+# parsing smiles file output from main chembl search to cluster by morgan
+# fingerprint and report results
+fingerprint:
+	cargo run --bin fingerprint --release -- t18a.smiles --min-pts 10
+
+# generate a set of inchi keys for our existing training and benchmark datasets
+inchis:
+	cargo run --bin inchis --release
+
 test:
 	cargo test -- $(FLAGS)
 
