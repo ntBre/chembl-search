@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::Path};
+use std::{collections::HashSet, fs::read_to_string, path::Path};
 
 use clap::Parser;
 use rsearch::{
@@ -130,9 +130,11 @@ fn main() -> std::io::Result<()> {
     clusters.retain(|c| !c.is_empty());
 
     // TODO filter out any molecules already in our training or benchmark sets
-    // - get inchi keys for those
-    // - get inchi keys for ROMOls
-    // - filter out any overlap
+    // - [ ] get inchi keys for those
+    // - [x] get inchi keys for ROMOls
+    // - [ ] filter out any overlap
+
+    let _inchis: HashSet<_> = mols.iter().map(ROMol::to_inchi_key).collect();
 
     // TODO highlight involved atoms - this will require additional printing in
     // the original search, maybe tsv of smiles and involved atoms
