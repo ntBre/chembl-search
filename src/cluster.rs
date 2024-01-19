@@ -10,6 +10,15 @@ pub enum Label {
     None,
 }
 
+pub fn print_labels(labels: &[Label]) {
+    for group in labels.chunks(20) {
+        for g in group {
+            print!("{g:?}");
+        }
+        println!();
+    }
+}
+
 impl std::fmt::Debug for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let w = f.width().unwrap_or(4);

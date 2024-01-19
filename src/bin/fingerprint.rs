@@ -89,11 +89,4 @@ fn main() {
     for (i, c) in clusters.iter().enumerate() {
         println!("Cluster {i}: {} members", c.len());
     }
-
-    // for group in labels.chunks(20) {
-    //     for g in group {
-    //         print!("{g:?}");
-    //     }
-    //     println!();
-    // }
 }
