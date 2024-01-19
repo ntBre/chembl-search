@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 
 use clap::Parser;
 use rsearch::{
-    cluster::dbscan,
+    cluster::{dbscan, Label},
     matrix::Matrix,
     rdkit::{fingerprint::tanimoto, ROMol},
 };
@@ -42,11 +42,11 @@ fn main() {
         })
         .collect();
 
-    let n = fps.len();
-    let mut db = Matrix::zeros(n, n);
+    let nfps = fps.len();
+    let mut db = Matrix::zeros(nfps, nfps);
     // computing 1 - tanimoto here because dbscan groups items with _low_
     // distance, rather than high similarity
-    for i in 0..n {
+    for i in 0..nfps {
         db[(i, i)] = 0.0;
         for j in 0..i {
             let t = tanimoto(&fps[i], &fps[j]);
@@ -58,16 +58,42 @@ fn main() {
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
     // TODO some kind of useful output - some way of organizing output by chunk?
-    // report some statistics like in the notebook: number of clusters, noise
-    // points removed, number of molecules in each cluster. then we really want
-    // to find centroids of the clusters and select those molecules? or some
-    // number nearest to the centroid? it would also be nice to generate images
-    // of the candidate molecules - bindings to SVG stuff from rdkit and
-    // probably just generate html pages
-    for group in labels.chunks(20) {
-        for g in group {
-            print!("{g:?}");
+    // then we really want to find centroids of the clusters and select those
+    // molecules? or some number nearest to the centroid? it would also be nice
+    // to generate images of the candidate molecules - bindings to SVG stuff
+    // from rdkit and probably just generate html pages
+
+    let max = labels
+        .iter()
+        .filter_map(|l| match l {
+            Label::Cluster(n) => Some(n),
+            _ => None,
+        })
+        .max()
+        .unwrap();
+
+    // each entry contains a vec of molecule indices (smiles line numbers)
+    // corresponding to that cluster. clusters[i] is the ith cluster with
+    // members clusters[i][0..n], where n is however many members there are
+    let mut clusters: Vec<Vec<usize>> = vec![vec![]; *max + 1];
+
+    let mut noise = 0;
+    for (i, l) in labels.iter().enumerate() {
+        match l {
+            Label::Cluster(n) => clusters[*n].push(i),
+            _ => noise += 1,
         }
-        println!();
     }
+
+    println!("{nfps} molecules, {max} clusters, {noise} noise points");
+    for (i, c) in clusters.iter().enumerate() {
+        println!("Cluster {i}: {} members", c.len());
+    }
+
+    // for group in labels.chunks(20) {
+    //     for g in group {
+    //         print!("{g:?}");
+    //     }
+    //     println!();
+    // }
 }
