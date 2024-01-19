@@ -72,6 +72,14 @@ impl ROMol {
         }
     }
 
+    pub fn to_inchi_key(&self) -> String {
+        unsafe {
+            let smiles = rdkit_sys::RDKit_MolToInchiKey(self.0);
+            let s = CStr::from_ptr(smiles);
+            s.to_str().unwrap().to_owned()
+        }
+    }
+
     pub fn num_atoms(&self) -> usize {
         unsafe { rdkit_sys::RDKit_ROMol_getNumAtoms(self.0) as usize }
     }
@@ -279,5 +287,18 @@ pub mod fingerprint {
         let num = intersect(a, b);
         let den: usize = count(a) + count(b) - num;
         num as f64 / den as f64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_inchi_key() {
+        let benzene = ROMol::from_smiles("C1=CC=CC=C1");
+        let got = benzene.to_inchi_key();
+        let want = "UHOVQNZJYSORNB-UHFFFAOYSA-N";
+        assert_eq!(got, want);
     }
 }
