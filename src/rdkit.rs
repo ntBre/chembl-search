@@ -86,7 +86,10 @@ impl ROMol {
 
     pub fn sanitize(&mut self, ops: SanitizeFlags) {
         unsafe {
-            rdkit_sys::RDKit_SanitizeMol(self.0, ops.bits());
+            let status = rdkit_sys::RDKit_SanitizeMol(self.0, ops.bits());
+            if status != 0 {
+                panic!("sanitization failed");
+            }
         }
     }
 
