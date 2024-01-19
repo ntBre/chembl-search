@@ -4,3 +4,4 @@ __pycache__/
 /cpp/tester
 /target/
 /*.smiles
+/prints.html

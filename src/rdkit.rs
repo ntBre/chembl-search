@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    ffi::{c_uint, CStr, CString},
+    ffi::{c_int, c_uint, CStr, CString},
 };
 
 use bitflags::bitflags;
@@ -135,6 +135,27 @@ impl ROMol {
                 ret.as_mut_ptr(),
             );
             ret
+        }
+    }
+
+    pub fn draw_svg(
+        &self,
+        width: usize,
+        height: usize,
+        legend: &str,
+        highlight_atoms: &[usize],
+    ) -> String {
+        unsafe {
+            let legend = CString::new(legend).unwrap();
+            let s = rdkit_sys::RDKit_MolDrawSVG(
+                self.0,
+                width as c_int,
+                height as c_int,
+                legend.as_ptr(),
+                highlight_atoms.as_ptr().cast(),
+                highlight_atoms.len(),
+            );
+            CString::from_raw(s).to_str().unwrap().to_owned()
         }
     }
 }

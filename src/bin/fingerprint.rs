@@ -34,13 +34,17 @@ fn main() {
 
     let s = read_to_string(cli.smiles_file).unwrap();
     let smiles: Vec<_> = s.lines().collect();
-    let fps: Vec<_> = smiles
+    let mols: Vec<_> = smiles
         .iter()
         .map(|smiles| {
             let mut mol = ROMol::from_smiles(smiles);
             mol.openff_clean();
-            mol.morgan_fingerprint_bit_vec::<1024>(cli.radius)
+            mol
         })
+        .collect();
+    let fps: Vec<_> = mols
+        .iter()
+        .map(|mol| mol.morgan_fingerprint_bit_vec::<1024>(cli.radius))
         .collect();
 
     let nfps = fps.len();
@@ -84,10 +88,20 @@ fn main() {
         }
     }
 
-    println!("{nfps} molecules, {max} clusters, {noise} noise points");
+    use std::io::Write;
+    let mut out = std::fs::File::create("prints.html").unwrap();
+    writeln!(out, "<html>").unwrap();
+
+    writeln!(
+        out,
+        "{nfps} molecules, {max} clusters, {noise} noise points"
+    )
+    .unwrap();
     for (i, c) in clusters.iter().enumerate() {
-        println!("Cluster {i}: {} members", c.len());
-        println!("Centroid molecule:");
-        println!("{}", smiles[c[0]]);
+        let smile = smiles[c[0]];
+        let svg = mols[c[0]].draw_svg(400, 300, &smile[..60], &[]);
+        writeln!(out, "<h1>Cluster {i} Centroid Molecule</h1>\n{svg}\n</svg>")
+            .unwrap();
     }
+    writeln!(out, "</html>").unwrap();
 }
