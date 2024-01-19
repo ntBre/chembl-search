@@ -62,10 +62,6 @@ fn main() {
 
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
-    // TODO some kind of useful output - some way of organizing output by chunk?
-    // it would also be nice to generate images of the candidate molecules -
-    // bindings to SVG stuff from rdkit and probably just generate html pages
-
     let max = labels
         .iter()
         .filter_map(|l| match l {
