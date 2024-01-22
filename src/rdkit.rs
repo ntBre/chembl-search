@@ -160,6 +160,8 @@ impl ROMol {
         legend: &str,
         highlight_atoms: &[usize],
     ) -> String {
+        let atoms: Vec<_> =
+            highlight_atoms.iter().map(|a| *a as c_int).collect();
         unsafe {
             let legend = CString::new(legend).unwrap();
             let s = rdkit_sys::RDKit_MolDrawSVG(
@@ -167,7 +169,7 @@ impl ROMol {
                 width as c_int,
                 height as c_int,
                 legend.as_ptr(),
-                highlight_atoms.as_ptr().cast(),
+                atoms.as_ptr(),
                 highlight_atoms.len(),
             );
             CString::from_raw(s).to_str().unwrap().to_owned()
