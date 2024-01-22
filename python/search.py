@@ -63,8 +63,6 @@ def find_smarts_matches(
     aromaticity_model: str = "OEAroModel_MDL",
     unique: bool = False,
 ) -> list[tuple[int, ...]]:
-    # TODO something important must be happening here because I can't replicate
-    # the substruct matching using rdkit directly in either Python or C++
     rdmol = self._connection_table_to_rdkit(
         molecule, aromaticity_model=aromaticity_model
     )
