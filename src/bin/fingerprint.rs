@@ -1,42 +1,75 @@
-use std::{collections::HashSet, fs::read_to_string, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::read_to_string,
+    path::Path,
+};
 
 use clap::Parser;
+use openff_toolkit::ForceField;
 use rsearch::{
     cluster::{dbscan, Label},
     matrix::Matrix,
-    rdkit::{fingerprint::tanimoto, ROMol},
+    rdkit::{find_smarts_matches, fingerprint::tanimoto, ROMol},
 };
 
-fn write_report(
-    path: impl AsRef<Path>,
-    max: &usize,
+struct Report<'a> {
+    max: usize,
     nfps: usize,
     noise: usize,
     clusters: Vec<Vec<usize>>,
-    smiles: Vec<&str>,
+    smiles: Vec<&'a str>,
     mols: Vec<ROMol>,
-) -> Result<(), std::io::Error> {
-    use std::io::Write;
-    let mut out = std::fs::File::create(path).unwrap();
-    writeln!(out, "<html>")?;
-    writeln!(
-        out,
-        "{nfps} molecules, {max} clusters, {noise} noise points, \
+    ff: String,
+    param: Option<String>,
+}
+
+impl Report<'_> {
+    fn generate(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut out = std::fs::File::create(path).unwrap();
+        writeln!(out, "<html>")?;
+        writeln!(
+            out,
+            "{nfps} molecules, {max} clusters, {noise} noise points, \
         pruned {} empty clusters",
-        max + 1 - clusters.len()
-    )?;
-    for (i, c) in clusters.iter().enumerate() {
-        let smile = smiles[c[0]];
-        let mol = &mols[c[0]];
-        let svg = mol.draw_svg(400, 300, "", &[]);
-        writeln!(out, "<h1>Cluster {i}</h1>")?;
-        writeln!(out, "<p>Molecule 1/{}</p>", c.len())?;
-        writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
-        writeln!(out, "<p>SMILES: {smile}</p>")?;
-        writeln!(out, "{svg}")?;
+            self.max + 1 - self.clusters.len(),
+            nfps = self.nfps,
+            max = self.max,
+            noise = self.noise
+        )?;
+        // TODO allow other handlers, another cli option...
+        let map: HashMap<_, _> = ForceField::load(&self.ff)
+            .unwrap()
+            .get_parameter_handler("ProperTorsions")
+            .unwrap()
+            .parameters()
+            .into_iter()
+            .map(|p| (p.id(), p.smirks()))
+            .collect();
+        for (i, c) in self.clusters.iter().enumerate() {
+            let smile = self.smiles[c[0]];
+            let mol = &self.mols[c[0]];
+
+            let mut hl_atoms = Vec::new();
+            if let Some(pid) = &self.param {
+                if let Some(smirks) = map.get(pid) {
+                    let tmp = find_smarts_matches(mol, &smirks);
+                    if !tmp.is_empty() {
+                        hl_atoms = tmp[0].clone();
+                    }
+                }
+            }
+
+            let svg = mol.draw_svg(400, 300, "", &hl_atoms);
+            writeln!(out, "<h1>Cluster {i}</h1>")?;
+            writeln!(out, "<p>Molecule 1/{}</p>", c.len())?;
+            writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
+            writeln!(out, "<p>SMILES: {smile}</p>")?;
+            writeln!(out, "{svg}")?;
+        }
+        writeln!(out, "</html>")?;
+        Ok(())
     }
-    writeln!(out, "</html>")?;
-    Ok(())
 }
 
 /// The default DBSCAN parameters are taken from the
@@ -46,6 +79,14 @@ fn write_report(
 struct Cli {
     /// The file of SMILES strings to read as input, one SMILES per line.
     smiles_file: String,
+
+    /// The force field to use for parameter labeling.
+    #[arg(short, long, default_value = "openff-2.1.0.offxml")]
+    forcefield: String,
+
+    /// The parameter to use when highlighting atoms in the molecules.
+    #[arg(short, long)]
+    parameter: Option<String>,
 
     /// DBSCAN parameter specifying the acceptable distance between a core point
     /// of a cluster and one of its neighbors.
@@ -95,7 +136,7 @@ fn main() -> std::io::Result<()> {
 
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
-    let max = labels
+    let max = *labels
         .iter()
         .filter_map(|l| match l {
             Label::Cluster(n) => Some(n),
@@ -107,7 +148,7 @@ fn main() -> std::io::Result<()> {
     // each entry contains a vec of molecule indices (smiles line numbers)
     // corresponding to that cluster. clusters[i] is the ith cluster with
     // members clusters[i][0..n], where n is however many members there are
-    let mut clusters: Vec<Vec<usize>> = vec![vec![]; *max + 1];
+    let mut clusters: Vec<Vec<usize>> = vec![vec![]; max + 1];
 
     let mut noise = 0;
     for (i, l) in labels.iter().enumerate() {
@@ -143,7 +184,17 @@ fn main() -> std::io::Result<()> {
     // TODO highlight involved atoms - this will require additional printing in
     // the original search, maybe tsv of smiles and involved atoms
 
-    write_report("prints.html", max, nfps, noise, clusters, smiles, mols)?;
+    Report {
+        max,
+        nfps,
+        noise,
+        clusters,
+        smiles,
+        mols,
+        ff: cli.forcefield,
+        param: cli.parameter,
+    }
+    .generate("prints.html")?;
 
     Ok(())
 }
