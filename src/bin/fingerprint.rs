@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fs::read_to_string,
+    io::{self, Write},
     path::Path,
 };
 
@@ -19,13 +20,14 @@ struct Report<'a> {
     clusters: Vec<Vec<usize>>,
     smiles: Vec<&'a str>,
     mols: Vec<ROMol>,
-    ff: String,
-    param: Option<String>,
+    cli: &'a Cli,
 }
 
+type Pid = String;
+type Smirks = String;
+
 impl Report<'_> {
-    fn generate(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
-        use std::io::Write;
+    fn generate(&self, path: impl AsRef<Path>) -> io::Result<()> {
         let mut out = std::fs::File::create(path).unwrap();
         writeln!(out, "<html>")?;
         writeln!(
@@ -37,38 +39,64 @@ impl Report<'_> {
             max = self.max,
             noise = self.noise
         )?;
-        // TODO allow other handlers, another cli option...
-        let map: HashMap<_, _> = ForceField::load(&self.ff)
+
+        let map: HashMap<Pid, Smirks> = ForceField::load(&self.cli.forcefield)
             .unwrap()
-            .get_parameter_handler("ProperTorsions")
+            .get_parameter_handler(&self.cli.parameter_type)
             .unwrap()
             .parameters()
             .into_iter()
             .map(|p| (p.id(), p.smirks()))
             .collect();
+
         for (i, c) in self.clusters.iter().enumerate() {
-            let smile = self.smiles[c[0]];
-            let mol = &self.mols[c[0]];
+            writeln!(out, "<h1>Cluster {}, {} molecules</h1>", i + 1, c.len())?;
 
-            let mut hl_atoms = Vec::new();
-            if let Some(pid) = &self.param {
-                if let Some(smirks) = map.get(pid) {
-                    let tmp = find_smarts_matches(mol, &smirks);
-                    if !tmp.is_empty() {
-                        hl_atoms = tmp[0].clone();
-                    }
-                }
+            self.add_svg(&mut out, "Central Molecule", &map, c[0])?;
+
+            // find the index of the smallest molecule
+            let (idx, _) = c
+                .iter()
+                .enumerate()
+                .map(|(i, m)| (i, self.mols[*m].num_atoms()))
+                .min_by_key(|x| x.1)
+                .unwrap();
+            if idx != 0 {
+                self.add_svg(&mut out, "Smallest Molecule", &map, c[idx])?;
             }
-
-            let svg = mol.draw_svg(400, 300, "", &hl_atoms);
-            writeln!(out, "<h1>Cluster {i}</h1>")?;
-            writeln!(out, "<p>Molecule 1/{}</p>", c.len())?;
-            writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
-            writeln!(out, "<p>SMILES: {smile}</p>")?;
-            writeln!(out, "{svg}")?;
         }
         writeln!(out, "</html>")?;
         Ok(())
+    }
+
+    fn add_svg(
+        &self,
+        out: &mut impl Write,
+        msg: &str,
+        map: &HashMap<String, String>,
+        idx: usize,
+    ) -> io::Result<()> {
+        let smile = self.smiles[idx];
+        let mol = &self.mols[idx];
+        let svg = self.make_svg(&map, mol);
+        writeln!(out, "<p>{msg}</p>")?;
+        writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
+        writeln!(out, "<p>SMILES: {smile}</p>")?;
+        writeln!(out, "{svg}")?;
+        Ok(())
+    }
+
+    fn make_svg(&self, map: &HashMap<String, String>, mol: &ROMol) -> String {
+        let mut hl_atoms = Vec::new();
+        if let Some(pid) = &self.cli.parameter {
+            if let Some(smirks) = map.get(pid) {
+                let tmp = find_smarts_matches(mol, &smirks);
+                if !tmp.is_empty() {
+                    hl_atoms = tmp[0].clone();
+                }
+            }
+        }
+        mol.draw_svg(400, 300, "", &hl_atoms)
     }
 }
 
@@ -88,6 +116,12 @@ struct Cli {
     #[arg(short, long)]
     parameter: Option<String>,
 
+    /// The `Parameter` type for which to extract parameters. Allowed options
+    /// are valid arguments to `ForceField.get_parameter_handler`, such as
+    /// Bonds, Angles, or ProperTorsions.
+    #[arg(short, long, default_value = "ProperTorsions")]
+    parameter_type: String,
+
     /// DBSCAN parameter specifying the acceptable distance between a core point
     /// of a cluster and one of its neighbors.
     #[arg(short, long, default_value_t = 0.5)]
@@ -103,10 +137,10 @@ struct Cli {
     radius: u32,
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    let s = read_to_string(cli.smiles_file).unwrap();
+    let s = read_to_string(&cli.smiles_file).unwrap();
     let smiles: Vec<_> = s.lines().collect();
     let mols: Vec<_> = smiles
         .iter()
@@ -181,9 +215,6 @@ fn main() -> std::io::Result<()> {
     });
     clusters.retain(|c| !c.is_empty());
 
-    // TODO highlight involved atoms - this will require additional printing in
-    // the original search, maybe tsv of smiles and involved atoms
-
     Report {
         max,
         nfps,
@@ -191,8 +222,7 @@ fn main() -> std::io::Result<()> {
         clusters,
         smiles,
         mols,
-        ff: cli.forcefield,
-        param: cli.parameter,
+        cli: &cli,
     }
     .generate("prints.html")?;
 
