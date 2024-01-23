@@ -25,3 +25,7 @@ clippy:
 
 run:
 	cargo run --release -- $(ARGS)
+
+prof.fingerprint:
+	RUSTFLAGS=-g cargo build --release --bin fingerprint
+	perf record --call-graph dwarf target/release/fingerprint t18a.smiles -m 10 -p t18a
