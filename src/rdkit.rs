@@ -61,6 +61,10 @@ impl BitVector {
         Self { data: Vec::new() }
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &u64> {
+        self.data.iter()
+    }
+
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -303,12 +307,7 @@ pub fn find_smarts_matches_mol(mol: &ROMol, smarts: &ROMol) -> Vec<Vec<usize>> {
 }
 
 pub mod fingerprint {
-    use std::simd::Simd;
-
     use super::BitVector;
-
-    // this is the fastest one I've tried by ~2 seconds. 32 was the worst
-    const LANE_SIZE: usize = 16;
 
     /// print `bv` to stdout in 16 groups of 4 per row
     pub fn print_bit_vec(bv: &[usize]) {
@@ -324,11 +323,10 @@ pub mod fingerprint {
     }
 
     /// return the number of bits in the intersection of a and b
-    pub fn intersect(a: [u64; LANE_SIZE], b: [u64; LANE_SIZE]) -> u64 {
-        (Simd::from(a) & Simd::from(b))
-            .as_array()
-            .iter()
-            .fold(0, |acc, n| acc + n.count_ones() as u64)
+    pub fn intersect(a: &BitVector, b: &BitVector) -> usize {
+        a.iter()
+            .zip(b.iter())
+            .fold(0, |acc, (a, b)| acc + (a & b).count_ones()) as usize
     }
 
     /// Computes the Tanimoto distance between bit vectors a and b
@@ -336,16 +334,7 @@ pub mod fingerprint {
     /// T(a, b) = (a ∩ b) / (a + b - a ∩ b), at least according to
     /// featurebase.com/blog/tanimoto-and-chemical-similarity-in-featurebase
     pub fn tanimoto(a: &BitVector, b: &BitVector) -> f64 {
-        let mut aa: [u64; LANE_SIZE] = [0; LANE_SIZE];
-        let mut ba: [u64; LANE_SIZE] = [0; LANE_SIZE];
-        let mut num = 0;
-        for i in (0..a.len()).step_by(LANE_SIZE) {
-            for i in i..i + LANE_SIZE {
-                aa[i % LANE_SIZE] = a[i];
-                ba[i % LANE_SIZE] = b[i];
-            }
-            num += intersect(aa, ba) as usize;
-        }
+        let num = intersect(a, b);
         let den: usize = a.count() + b.count() - num;
         num as f64 / den as f64
     }
