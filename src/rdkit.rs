@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     ffi::{c_int, c_uint, CStr, CString},
-    ops::Index,
 };
 
 use bitflags::bitflags;
@@ -11,6 +10,8 @@ use rdkit_sys::{
     RDKit_delete_mol_supplier, RDKit_mol_supplier_at_end,
     RDKit_mol_supplier_next,
 };
+
+use self::bitvector::BitVector;
 
 pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
 
@@ -52,44 +53,61 @@ impl Iterator for SDMolSupplier {
     }
 }
 
-pub struct BitVector {
-    data: Vec<u64>,
-}
+pub mod bitvector {
+    use std::ops::Index;
 
-impl BitVector {
-    pub fn new() -> Self {
-        Self { data: Vec::new() }
+    pub struct BitVector {
+        data: Vec<u64>,
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &u64> {
-        self.data.iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    pub fn count(&self) -> usize {
-        self.data
-            .iter()
-            .fold(0, |acc, n| acc + n.count_ones() as usize)
-    }
-}
-
-impl Index<usize> for BitVector {
-    type Output = u64;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[index]
-    }
-}
-
-impl std::fmt::Debug for BitVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for row in &self.data {
-            writeln!(f, "{:064b}", row)?;
+    impl BitVector {
+        pub fn new() -> Self {
+            Self { data: Vec::new() }
         }
-        Ok(())
+
+        pub fn iter(&self) -> impl Iterator<Item = &u64> {
+            self.data.iter()
+        }
+
+        pub fn len(&self) -> usize {
+            self.data.len()
+        }
+
+        pub fn count(&self) -> usize {
+            self.data
+                .iter()
+                .fold(0, |acc, n| acc + n.count_ones() as usize)
+        }
+    }
+
+    impl From<&[bool]> for BitVector {
+        fn from(value: &[bool]) -> Self {
+            let mut bv = BitVector::new();
+            for i in 0..value.len() {
+                if bv.data.len() < i / 64 + 1 {
+                    bv.data.push(0);
+                }
+                bv.data[i / 64] |= (value[i] as u64) << i % 64;
+            }
+            bv
+        }
+    }
+
+    impl Index<usize> for BitVector {
+        type Output = u64;
+
+        fn index(&self, index: usize) -> &Self::Output {
+            &self.data[index]
+        }
+    }
+
+    impl std::fmt::Debug for BitVector {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for row in &self.data {
+                writeln!(f, "{:064b}", row)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -191,14 +209,7 @@ impl ROMol {
                 N,
                 tmp.as_mut_ptr(),
             );
-            let mut bv = BitVector::new();
-            for i in 0..N {
-                if bv.data.len() < i / 64 + 1 {
-                    bv.data.push(0);
-                }
-                bv.data[i / 64] |= (tmp[i] as u64) << i % 64;
-            }
-            bv
+            tmp.as_ref().into()
         }
     }
 
@@ -307,7 +318,7 @@ pub fn find_smarts_matches_mol(mol: &ROMol, smarts: &ROMol) -> Vec<Vec<usize>> {
 }
 
 pub mod fingerprint {
-    use super::BitVector;
+    use super::bitvector::BitVector;
 
     /// print `bv` to stdout in 16 groups of 4 per row
     pub fn print_bit_vec(bv: &[usize]) {
