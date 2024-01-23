@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::{c_int, c_uint, CStr, CString},
+    ops::Index,
 };
 
 use bitflags::bitflags;
@@ -48,6 +49,43 @@ impl Iterator for SDMolSupplier {
             return None;
         }
         Some(unsafe { ROMol(RDKit_mol_supplier_next(self.0)) })
+    }
+}
+
+pub struct BitVector {
+    data: Vec<u64>,
+}
+
+impl BitVector {
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn count(&self) -> usize {
+        self.data
+            .iter()
+            .fold(0, |acc, n| acc + n.count_ones() as usize)
+    }
+}
+
+impl Index<usize> for BitVector {
+    type Output = u64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+impl std::fmt::Debug for BitVector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in &self.data {
+            writeln!(f, "{:064b}", row)?;
+        }
+        Ok(())
     }
 }
 
@@ -140,16 +178,23 @@ impl ROMol {
     pub fn morgan_fingerprint_bit_vec<const N: usize>(
         &self,
         radius: c_uint,
-    ) -> [bool; N] {
+    ) -> BitVector {
         unsafe {
-            let mut ret = [false; N];
+            let mut tmp = [false; N];
             rdkit_sys::RDKit_MorganFingerprintBitVector(
                 self.0,
                 radius,
                 N,
-                ret.as_mut_ptr(),
+                tmp.as_mut_ptr(),
             );
-            ret
+            let mut bv = BitVector::new();
+            for i in 0..N {
+                if bv.data.len() < i / 64 + 1 {
+                    bv.data.push(0);
+                }
+                bv.data[i / 64] |= (tmp[i] as u64) << i % 64;
+            }
+            bv
         }
     }
 
@@ -258,6 +303,13 @@ pub fn find_smarts_matches_mol(mol: &ROMol, smarts: &ROMol) -> Vec<Vec<usize>> {
 }
 
 pub mod fingerprint {
+    use std::simd::Simd;
+
+    use super::BitVector;
+
+    // this is the fastest one I've tried by ~2 seconds. 32 was the worst
+    const LANE_SIZE: usize = 16;
+
     /// print `bv` to stdout in 16 groups of 4 per row
     pub fn print_bit_vec(bv: &[usize]) {
         for line in bv.chunks(16 * 4) {
@@ -272,25 +324,29 @@ pub mod fingerprint {
     }
 
     /// return the number of bits in the intersection of a and b
-    pub fn intersect(a: &[bool], b: &[bool]) -> usize {
-        let mut ret = 0;
-        for (a, b) in a.iter().zip(b) {
-            ret += (a & b) as usize;
-        }
-        ret
-    }
-
-    fn count(b: &[bool]) -> usize {
-        b.iter().fold(0, |acc, &b| acc + b as usize)
+    pub fn intersect(a: [u64; LANE_SIZE], b: [u64; LANE_SIZE]) -> u64 {
+        (Simd::from(a) & Simd::from(b))
+            .as_array()
+            .iter()
+            .fold(0, |acc, n| acc + n.count_ones() as u64)
     }
 
     /// Computes the Tanimoto distance between bit vectors a and b
     ///
     /// T(a, b) = (a ∩ b) / (a + b - a ∩ b), at least according to
     /// featurebase.com/blog/tanimoto-and-chemical-similarity-in-featurebase
-    pub fn tanimoto(a: &[bool], b: &[bool]) -> f64 {
-        let num = intersect(a, b);
-        let den: usize = count(a) + count(b) - num;
+    pub fn tanimoto(a: &BitVector, b: &BitVector) -> f64 {
+        let mut aa: [u64; LANE_SIZE] = [0; LANE_SIZE];
+        let mut ba: [u64; LANE_SIZE] = [0; LANE_SIZE];
+        let mut num = 0;
+        for i in (0..a.len()).step_by(LANE_SIZE) {
+            for i in i..i + LANE_SIZE {
+                aa[i % LANE_SIZE] = a[i];
+                ba[i % LANE_SIZE] = b[i];
+            }
+            num += intersect(aa, ba) as usize;
+        }
+        let den: usize = a.count() + b.count() - num;
         num as f64 / den as f64
     }
 }

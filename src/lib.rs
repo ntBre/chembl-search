@@ -1,3 +1,5 @@
+#![feature(portable_simd)]
+
 use std::collections::{HashMap, HashSet};
 
 use rdkit::{find_smarts_matches_mol, ROMol};
