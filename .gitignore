@@ -5,3 +5,5 @@ __pycache__/
 /target/
 /*.smiles
 /prints.html
+flamegraph.svg
+perf.data*
