@@ -26,8 +26,8 @@ test:
 clippy:
 	cargo clippy --workspace --tests
 
-run:
-	cargo run --release -- $(ARGS)
+run: src/main.rs want.params chembl_33.smiles
+	cargo run --bin rsearch --release -- $(ARGS)
 
 # Usage:
 # $(call profile, bin-name, args...)

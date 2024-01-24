@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
+use std::fs::read_to_string;
+use std::io;
 use std::sync::atomic::AtomicUsize;
 
 use clap::Parser;
 use openff_toolkit::ForceField;
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
-use rsearch::rdkit::{ROMol, SDMolSupplier};
+use rsearch::rdkit::ROMol;
 
 fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
@@ -17,11 +18,9 @@ fn load_want(path: &str) -> HashSet<String> {
 
 fn print_output(res: HashMap<String, Vec<String>>) {
     for (pid, moles) in res {
-        println!("{pid}");
         for mol in moles {
-            println!("\t{mol}");
+            println!("{pid}\t{mol}");
         }
-        println!();
     }
 }
 
@@ -47,8 +46,8 @@ struct Cli {
     #[arg(short, long, default_value = "ProperTorsions")]
     parameter_type: String,
 
-    /// The path to the SDF file from which to read Molecules.
-    #[arg(short, long, default_value = "chembl_33.sdf")]
+    /// The path to the SMILES file from which to read Molecules.
+    #[arg(short, long, default_value = "chembl_33.smiles")]
     molecule_file: String,
 
     /// The path to the file listing the parameters to match against, one per
@@ -56,20 +55,14 @@ struct Cli {
     #[arg(short, long, default_value = "want.params")]
     search_params: String,
 
-    /// The number of threads to use. Defaults to the number of logical CPUs as
-    /// detected by rayon.
-    #[arg(short, long, default_value_t = 0)]
-    threads: usize,
-
     /// Whether or not to create output files, one for each input parameter. If
     /// false, print the output to stdout.
     #[arg(short, long)]
     write_output: bool,
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let cli = Cli::parse();
-    let m = SDMolSupplier::new(cli.molecule_file);
     let ff = ForceField::load(&cli.forcefield).unwrap();
     let h = ff.get_parameter_handler(&cli.parameter_type).unwrap();
     let mut params = Vec::new();
@@ -79,16 +72,11 @@ fn main() {
 
     let want = load_want(&cli.search_params);
 
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(cli.threads)
-        .build_global()
-        .unwrap();
-
     let progress = AtomicUsize::new(0);
 
-    let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
+    let map_op = |s: &str| -> Vec<(String, String)> {
+        let mut mol = ROMol::from_smiles(s);
         mol.openff_clean();
-
         let matches = find_matches(&params, &mol);
 
         let mut res: Vec<(String, String)> = Vec::new();
@@ -105,7 +93,11 @@ fn main() {
         }
         res
     };
-    let results: Vec<_> = m.into_iter().par_bridge().flat_map(map_op).collect();
+
+    let results: Vec<_> = read_to_string(cli.molecule_file)?
+        .split_ascii_whitespace()
+        .flat_map(map_op)
+        .collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
     for (pid, mol) in results {
@@ -117,4 +109,6 @@ fn main() {
     } else {
         print_output(res);
     }
+
+    Ok(())
 }
