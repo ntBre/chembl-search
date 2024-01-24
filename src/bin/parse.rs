@@ -12,9 +12,7 @@ fn main() {
         std::process::exit(1);
     }
     let mut output = File::create(args[2].as_str()).unwrap();
-    for smile in
-        SDMolSupplier::new(args[1].as_str(), true).map(|m| m.to_smiles())
-    {
+    for smile in SDMolSupplier::new(args[1].as_str()).map(|m| m.to_smiles()) {
         writeln!(output, "{smile}").unwrap();
     }
 }
