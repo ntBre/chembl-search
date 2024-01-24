@@ -18,12 +18,13 @@ pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
 unsafe impl Send for SDMolSupplier {}
 
 impl SDMolSupplier {
-    /// construct an [SDMolSupplier] from a filepath that can be converted
-    /// to a CString. panics if this conversion fails
-    pub fn new(path: impl Into<Vec<u8>>) -> Self {
+    /// construct an [SDMolSupplier] from a filepath that can be converted to a
+    /// CString. panics if this conversion fails. `remove_hs` defaults to true
+    /// in C++
+    pub fn new(path: impl Into<Vec<u8>>, remove_hs: bool) -> Self {
         let cpath = CString::new(path).expect("failed to create CString");
         unsafe {
-            let inner = RDKit_create_mol_supplier(cpath.as_ptr());
+            let inner = RDKit_create_mol_supplier(cpath.as_ptr(), remove_hs);
             Self(inner)
         }
     }
