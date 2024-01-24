@@ -8,6 +8,9 @@ RDKIT_PATH = /home/brent/omsf/clone/rdkit
 
 export LD_LIBRARY_PATH=$(RDKIT_SYS_PATH):$(RDKIT_PATH)/build/lib
 
+chembl_33.smiles: chembl_33.sdf src/bin/parse.rs
+	cargo run --bin parse --release $< $@
+
 # parsing smiles file output from main chembl search to cluster by morgan
 # fingerprint and report results
 fingerprint:
