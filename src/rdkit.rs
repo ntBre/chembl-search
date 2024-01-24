@@ -123,6 +123,11 @@ pub mod bitvector {
             self.data.len()
         }
 
+        #[must_use]
+        pub fn is_empty(&self) -> bool {
+            self.len() == 0
+        }
+
         pub fn count(&self) -> usize {
             self.data
                 .iter()
@@ -130,14 +135,20 @@ pub mod bitvector {
         }
     }
 
+    impl Default for BitVector {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl From<&[bool]> for BitVector {
         fn from(value: &[bool]) -> Self {
             let mut bv = BitVector::new();
-            for i in 0..value.len() {
+            for (i, v) in value.iter().enumerate() {
                 if bv.data.len() < i / 64 + 1 {
                     bv.data.push(0);
                 }
-                bv.data[i / 64] |= (value[i] as u64) << i % 64;
+                bv.data[i / 64] |= (*v as u64) << (i % 64);
             }
             bv
         }

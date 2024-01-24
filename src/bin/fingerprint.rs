@@ -78,7 +78,7 @@ impl Report<'_> {
     ) -> io::Result<()> {
         let smile = self.smiles[idx];
         let mol = &self.mols[idx];
-        let svg = self.make_svg(&map, mol);
+        let svg = self.make_svg(map, mol);
         writeln!(out, "<p>{msg}</p>")?;
         writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
         writeln!(out, "<p>SMILES: {smile}</p>")?;
@@ -90,7 +90,7 @@ impl Report<'_> {
         let mut hl_atoms = Vec::new();
         if let Some(pid) = &self.cli.parameter {
             if let Some(smirks) = map.get(pid) {
-                let tmp = find_smarts_matches(mol, &smirks);
+                let tmp = find_smarts_matches(mol, smirks);
                 if !tmp.is_empty() {
                     hl_atoms = tmp[0].clone();
                 }
