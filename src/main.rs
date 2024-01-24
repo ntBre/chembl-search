@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::fs::read_to_string;
 use std::io;
 use std::sync::atomic::AtomicUsize;
 
 use clap::Parser;
 use openff_toolkit::ForceField;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
 use rsearch::rdkit::ROMol;
 
@@ -55,6 +55,11 @@ struct Cli {
     #[arg(short, long, default_value = "want.params")]
     search_params: String,
 
+    /// The number of threads to use. Defaults to the number of logical CPUs as
+    /// detected by rayon.
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
+
     /// Whether or not to create output files, one for each input parameter. If
     /// false, print the output to stdout.
     #[arg(short, long)]
@@ -72,11 +77,17 @@ fn main() -> io::Result<()> {
 
     let want = load_want(&cli.search_params);
 
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(cli.threads)
+        .build_global()
+        .unwrap();
+
     let progress = AtomicUsize::new(0);
 
     let map_op = |s: &str| -> Vec<(String, String)> {
         let mut mol = ROMol::from_smiles(s);
         mol.openff_clean();
+
         let matches = find_matches(&params, &mol);
 
         let mut res: Vec<(String, String)> = Vec::new();
@@ -94,8 +105,9 @@ fn main() -> io::Result<()> {
         res
     };
 
-    let results: Vec<_> = read_to_string(cli.molecule_file)?
+    let results: Vec<_> = std::fs::read_to_string(cli.molecule_file)?
         .split_ascii_whitespace()
+        .par_bridge()
         .flat_map(map_op)
         .collect();
 
