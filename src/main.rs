@@ -1,12 +1,10 @@
-use std::collections::{HashMap, HashSet};
-use std::fs::read_to_string;
-use std::io;
-use std::sync::atomic::AtomicUsize;
-
 use clap::Parser;
 use openff_toolkit::ForceField;
 use rsearch::find_matches;
 use rsearch::rdkit::ROMol;
+use std::collections::{HashMap, HashSet};
+use std::fs::read_to_string;
+use std::io;
 
 fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
@@ -72,8 +70,6 @@ fn main() -> io::Result<()> {
 
     let want = load_want(&cli.search_params);
 
-    let progress = AtomicUsize::new(0);
-
     let map_op = |s: &str| -> Vec<(String, String)> {
         let mut mol = ROMol::from_smiles(s);
         mol.openff_clean();
@@ -86,10 +82,6 @@ fn main() -> io::Result<()> {
                 smiles = Some(mol.to_smiles());
             }
             res.push((pid.to_string(), smiles.clone().unwrap()));
-        }
-        let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if cur % 24_000 == 0 {
-            eprintln!("{}% complete", cur / 24_000);
         }
         res
     };
