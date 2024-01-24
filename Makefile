@@ -8,9 +8,6 @@ RDKIT_PATH = /home/brent/omsf/clone/rdkit
 
 export LD_LIBRARY_PATH=$(RDKIT_SYS_PATH):$(RDKIT_PATH)/build/lib
 
-chembl_33.smiles: chembl_33.sdf src/bin/parse.rs
-	cargo run --bin parse --release $< $@
-
 # parsing smiles file output from main chembl search to cluster by morgan
 # fingerprint and report results
 fingerprint:
@@ -26,7 +23,7 @@ test:
 clippy:
 	cargo clippy --workspace --tests
 
-run: src/main.rs want.params chembl_33.smiles
+run:
 	cargo run --bin rsearch --release -- $(ARGS)
 
 # Usage:
@@ -36,6 +33,3 @@ profile = RUSTFLAGS=-g cargo build --release --bin $1 \
 
 prof.fingerprint:
 	$(call profile, fingerprint, t18a.smiles -m 10 -p t18a)
-
-prof.parse:
-	$(call profile, parse, chembl_33.sdf chembl_33.smiles)

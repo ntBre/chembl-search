@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
-use std::io;
 use std::sync::atomic::AtomicUsize;
 
 use clap::Parser;
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
-use rsearch::rdkit::ROMol;
+use rsearch::rdkit::{ROMol, SDMolSupplier};
 
 fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
@@ -46,8 +45,8 @@ struct Cli {
     #[arg(short, long, default_value = "ProperTorsions")]
     parameter_type: String,
 
-    /// The path to the SMILES file from which to read Molecules.
-    #[arg(short, long, default_value = "chembl_33.smiles")]
+    /// The path to the SDF file from which to read Molecules.
+    #[arg(short, long, default_value = "chembl_33.sdf")]
     molecule_file: String,
 
     /// The path to the file listing the parameters to match against, one per
@@ -66,8 +65,9 @@ struct Cli {
     write_output: bool,
 }
 
-fn main() -> io::Result<()> {
+fn main() {
     let cli = Cli::parse();
+    let m = SDMolSupplier::new(cli.molecule_file);
     let ff = ForceField::load(&cli.forcefield).unwrap();
     let h = ff.get_parameter_handler(&cli.parameter_type).unwrap();
     let mut params = Vec::new();
@@ -84,8 +84,7 @@ fn main() -> io::Result<()> {
 
     let progress = AtomicUsize::new(0);
 
-    let map_op = |s: &str| -> Vec<(String, String)> {
-        let mut mol = ROMol::from_smiles(s);
+    let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
         mol.openff_clean();
 
         let matches = find_matches(&params, &mol);
@@ -104,12 +103,7 @@ fn main() -> io::Result<()> {
         }
         res
     };
-
-    let results: Vec<_> = std::fs::read_to_string(cli.molecule_file)?
-        .split_ascii_whitespace()
-        .par_bridge()
-        .flat_map(map_op)
-        .collect();
+    let results: Vec<_> = m.into_iter().par_bridge().flat_map(map_op).collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
     for (pid, mol) in results {
@@ -121,6 +115,4 @@ fn main() -> io::Result<()> {
     } else {
         print_output(res);
     }
-
-    Ok(())
 }
