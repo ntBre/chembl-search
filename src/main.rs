@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 
 use clap::Parser;
@@ -23,10 +24,11 @@ fn print_output(res: HashMap<String, Vec<String>>) {
     }
 }
 
-fn write_output(res: HashMap<String, Vec<String>>) {
+fn write_output(dir: impl AsRef<Path>, res: HashMap<String, Vec<String>>) {
     use std::io::Write;
     for (pid, moles) in res {
-        let mut f = std::fs::File::create(format!("{pid}.smiles")).unwrap();
+        let path = dir.as_ref().join(pid).with_extension("smiles");
+        let mut f = std::fs::File::create(path).unwrap();
         for mol in moles {
             writeln!(f, "{mol}").unwrap();
         }
@@ -59,10 +61,10 @@ struct Cli {
     #[arg(short, long, default_value_t = 0)]
     threads: usize,
 
-    /// Whether or not to create output files, one for each input parameter. If
+    /// Where to write output SMILES files, one for each input parameter. If
     /// false, print the output to stdout.
     #[arg(short, long)]
-    write_output: bool,
+    output_dir: Option<String>,
 }
 
 fn main() {
@@ -110,8 +112,15 @@ fn main() {
         res.entry(pid.to_string()).or_default().push(mol);
     }
 
-    if cli.write_output {
-        write_output(res);
+    if let Some(dir) = cli.output_dir {
+        let dir = Path::new(&dir);
+        if !dir.exists() && std::fs::create_dir_all(dir).is_err() {
+            eprintln!("failed to create output dir {dir:?}");
+            eprintln!("falling back to stdout");
+            print_output(res);
+            return;
+        }
+        write_output(dir, res);
     } else {
         print_output(res);
     }

@@ -24,7 +24,7 @@ clippy:
 	cargo clippy --workspace --tests
 
 run:
-	cargo run --bin rsearch --release -- $(ARGS)
+	cargo run --bin rsearch --release -- --output-dir output
 
 # Usage:
 # $(call profile, bin-name, args...)
