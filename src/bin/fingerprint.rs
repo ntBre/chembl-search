@@ -14,6 +14,7 @@ use rsearch::{
 };
 
 struct Report<'a> {
+    args: Vec<String>,
     max: usize,
     nfps: usize,
     noise: usize,
@@ -27,8 +28,9 @@ type Smirks = String;
 
 impl Report<'_> {
     fn generate(&self, path: impl AsRef<Path>) -> io::Result<()> {
-        let mut out = std::fs::File::create(path).unwrap();
+        let mut out = std::fs::File::create(path)?;
         writeln!(out, "<html>")?;
+        writeln!(out, "<pre>args: {:?}</pre>", self.args)?;
         writeln!(
             out,
             "{nfps} molecules, {max} clusters, {noise} noise points, \
@@ -252,6 +254,7 @@ fn main() -> io::Result<()> {
     let output = Path::new(&cli.smiles_file).with_extension("html");
 
     Report {
+        args: std::env::args().collect::<Vec<_>>(),
         max,
         nfps,
         noise,
