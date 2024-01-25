@@ -108,6 +108,10 @@ struct Cli {
     /// The file of SMILES strings to read as input, one SMILES per line.
     smiles_file: String,
 
+    /// The maximum number of atoms to consider
+    #[arg(long, default_value_t = 80)]
+    max_atoms: usize,
+
     /// The force field to use for parameter labeling.
     #[arg(short, long, default_value = "openff-2.1.0.offxml")]
     forcefield: String,
@@ -196,7 +200,6 @@ fn main() -> io::Result<()> {
     // sage-tm opt: 76
     // sage-tm td: 67
     // bench: 154
-    const MAX_ATOMS: usize = 154;
 
     let existing_inchis: HashSet<_> = read_to_string("inchis.dat")
         .unwrap()
@@ -209,7 +212,7 @@ fn main() -> io::Result<()> {
     // covered by our existing data sets; then filter any empty clusters
     clusters.iter_mut().for_each(|cluster| {
         cluster.retain(|mol_idx| {
-            mols[*mol_idx].num_atoms() <= MAX_ATOMS
+            mols[*mol_idx].num_atoms() <= cli.max_atoms
                 && !existing_inchis.contains(&new_inchis[*mol_idx])
         });
     });
