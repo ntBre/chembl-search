@@ -151,10 +151,14 @@ fn main() -> io::Result<()> {
         .collect();
     let mols: Vec<_> = smiles
         .iter()
-        .map(|smiles| {
+        .flat_map(|smiles| {
             let mut mol = ROMol::from_smiles(smiles);
             mol.openff_clean();
-            mol
+            if mol.num_atoms() <= cli.max_atoms {
+                Some(mol)
+            } else {
+                None
+            }
         })
         .collect();
     let fps: Vec<_> = mols
@@ -211,13 +215,11 @@ fn main() -> io::Result<()> {
         .collect();
     let new_inchis: Vec<_> = mols.iter().map(ROMol::to_inchi_key).collect();
 
-    // filter out molecules larger than MAX_ATOMS or with inchi_keys already
-    // covered by our existing data sets; then filter any empty clusters
+    // filter out molecules with inchi_keys already covered by our existing data
+    // sets; then filter any empty clusters
     clusters.iter_mut().for_each(|cluster| {
-        cluster.retain(|mol_idx| {
-            mols[*mol_idx].num_atoms() <= cli.max_atoms
-                && !existing_inchis.contains(&new_inchis[*mol_idx])
-        });
+        cluster
+            .retain(|mol_idx| !existing_inchis.contains(&new_inchis[*mol_idx]));
     });
     clusters.retain(|c| !c.is_empty());
 
