@@ -67,7 +67,7 @@ impl Report<'_> {
     ) -> io::Result<()> {
         let mol = &self.mols[idx];
         let smile = mol.to_smiles();
-        eprintln!("{smile}");
+        println!("{smile}");
         let svg = self.make_svg(map, mol);
         writeln!(out, "<p>{msg}</p>")?;
         writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
