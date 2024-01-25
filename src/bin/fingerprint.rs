@@ -215,6 +215,8 @@ fn main() -> io::Result<()> {
     });
     clusters.retain(|c| !c.is_empty());
 
+    let output = Path::new(&cli.smiles_file).with_extension("html");
+
     Report {
         max,
         nfps,
@@ -224,7 +226,7 @@ fn main() -> io::Result<()> {
         mols,
         cli: &cli,
     }
-    .generate("prints.html")?;
+    .generate(output)?;
 
     Ok(())
 }
