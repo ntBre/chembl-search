@@ -18,7 +18,6 @@ struct Report<'a> {
     nfps: usize,
     noise: usize,
     clusters: Vec<Vec<usize>>,
-    smiles: Vec<&'a str>,
     mols: Vec<ROMol>,
     cli: &'a Cli,
 }
@@ -50,6 +49,9 @@ impl Report<'_> {
             .collect();
 
         for (i, c) in self.clusters.iter().enumerate() {
+            for mol_idx in c {
+                self.add_svg(&mut out, "mol: ", &map, *mol_idx)?;
+            }
             writeln!(out, "<h1>Cluster {}, {} molecules</h1>", i + 1, c.len())?;
 
             self.add_svg(&mut out, "Central Molecule", &map, c[0])?;
@@ -76,8 +78,8 @@ impl Report<'_> {
         map: &HashMap<String, String>,
         idx: usize,
     ) -> io::Result<()> {
-        let smile = self.smiles[idx];
         let mol = &self.mols[idx];
+        let smile = mol.to_smiles();
         let svg = self.make_svg(map, mol);
         writeln!(out, "<p>{msg}</p>")?;
         writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
@@ -90,9 +92,12 @@ impl Report<'_> {
         let mut hl_atoms = Vec::new();
         if let Some(pid) = &self.cli.parameter {
             if let Some(smirks) = map.get(pid) {
+                eprintln!("{}", mol.to_smiles());
                 let tmp = find_smarts_matches(mol, smirks);
                 if !tmp.is_empty() {
                     hl_atoms = tmp[0].clone();
+                } else {
+                    // panic!("smirks doesn't match any more");
                 }
             }
         }
@@ -147,12 +152,13 @@ fn main() -> io::Result<()> {
     let s = read_to_string(&cli.smiles_file).unwrap();
     let smiles: Vec<_> = s
         .lines()
-        .map(|smiles| smiles.split('.').max_by_key(|s| s.len()).unwrap())
+        // .map(|smiles| smiles.split('.').max_by_key(|s| s.len()).unwrap())
         .collect();
     let mols: Vec<_> = smiles
         .iter()
         .flat_map(|smiles| {
             let mut mol = ROMol::from_smiles(smiles);
+            eprintln!("{}", mol.to_smiles());
             mol.openff_clean();
             if mol.num_atoms() <= cli.max_atoms {
                 Some(mol)
@@ -161,6 +167,7 @@ fn main() -> io::Result<()> {
             }
         })
         .collect();
+    eprintln!("......");
     let fps: Vec<_> = mols
         .iter()
         .map(|mol| mol.morgan_fingerprint_bit_vec::<1024>(cli.radius))
@@ -230,7 +237,6 @@ fn main() -> io::Result<()> {
         nfps,
         noise,
         clusters,
-        smiles,
         mols,
         cli: &cli,
     }
