@@ -36,7 +36,7 @@ impl Report<'_> {
         pruned {} empty clusters",
             self.max + 1 - self.clusters.len(),
             nfps = self.nfps,
-            max = self.max,
+            max = self.max + 1,
             noise = self.noise
         )?;
 
