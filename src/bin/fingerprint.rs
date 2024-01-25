@@ -146,17 +146,41 @@ fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
     let s = read_to_string(&cli.smiles_file).unwrap();
+
+    let parameter = cli.parameter.clone().unwrap_or_else(|| {
+        Path::new(&cli.smiles_file)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    });
+
     let smiles: Vec<_> = s.lines().collect();
+
+    let map: HashMap<Pid, Smirks> = ForceField::load(&cli.forcefield)
+        .unwrap()
+        .get_parameter_handler(&cli.parameter_type)
+        .unwrap()
+        .parameters()
+        .into_iter()
+        .map(|p| (p.id(), p.smirks()))
+        .collect();
+
     let mols: Vec<_> = smiles
         .iter()
         .flat_map(|smiles| {
-            let mut mol = ROMol::from_smiles(smiles);
-            mol.openff_clean();
-            if mol.num_atoms() <= cli.max_atoms {
-                Some(mol)
-            } else {
-                None
+            let mut mols = Vec::new();
+            for smiles in smiles.split('.') {
+                let mut mol = ROMol::from_smiles(smiles);
+                mol.openff_clean();
+                if mol.num_atoms() <= cli.max_atoms
+                    && !find_smarts_matches(&mol, &map[&parameter]).is_empty()
+                {
+                    mols.push(mol)
+                }
             }
+            mols
         })
         .collect();
 
