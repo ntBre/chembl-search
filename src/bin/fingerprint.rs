@@ -145,7 +145,10 @@ fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
     let s = read_to_string(&cli.smiles_file).unwrap();
-    let smiles: Vec<_> = s.lines().collect();
+    let smiles: Vec<_> = s
+        .lines()
+        .map(|smiles| smiles.split('.').max_by_key(|s| s.len()).unwrap())
+        .collect();
     let mols: Vec<_> = smiles
         .iter()
         .map(|smiles| {
