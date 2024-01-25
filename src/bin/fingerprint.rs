@@ -52,19 +52,7 @@ impl Report<'_> {
 
         for (i, c) in self.clusters.iter().enumerate() {
             writeln!(out, "<h1>Cluster {}, {} molecules</h1>", i + 1, c.len())?;
-
             self.add_svg(&mut out, "Central Molecule", &map, c[0])?;
-
-            // find the index of the smallest molecule
-            let (idx, _) = c
-                .iter()
-                .enumerate()
-                .map(|(i, m)| (i, self.mols[*m].num_atoms()))
-                .min_by_key(|x| x.1)
-                .unwrap();
-            if idx != 0 {
-                self.add_svg(&mut out, "Smallest Molecule", &map, c[idx])?;
-            }
         }
         writeln!(out, "</html>")?;
         Ok(())
