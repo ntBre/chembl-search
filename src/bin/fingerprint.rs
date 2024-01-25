@@ -167,7 +167,7 @@ fn main() -> io::Result<()> {
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let mols: Vec<_> = smiles
+    let mut mols: Vec<_> = smiles
         .iter()
         .flat_map(|smiles| {
             let mut mols = Vec::new();
@@ -183,6 +183,9 @@ fn main() -> io::Result<()> {
             mols
         })
         .collect();
+
+    mols.sort_by_key(|mol| mol.to_smiles());
+    mols.dedup_by_key(|mol| mol.to_smiles());
 
     let fps: Vec<_> = mols
         .iter()
