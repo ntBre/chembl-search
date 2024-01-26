@@ -43,15 +43,17 @@ fn range_query(db: &Matrix<f64>, p: usize, eps: f64) -> HashSet<usize> {
 
 /// takes a distance matrix and DBSCAN parameters `eps` and `min_pts`. Using the
 /// "original query-based algorithm" from Wikipedia for now
-pub fn dbscan(db: &Matrix<f64>, eps: f64, min_pts: usize) -> Vec<Label> {
-    let (r, c) = db.shape();
-    assert_eq!(r, c, "db must be a square matrix");
-
-    let mut label = vec![Label::None; r];
+pub fn dbscan(
+    rows: usize,
+    db: &Matrix<f64>,
+    eps: f64,
+    min_pts: usize,
+) -> Vec<Label> {
+    let mut label = vec![Label::None; rows];
     let mut c = 0; // cluster counter
 
     // each row corresponds to one entry's distance from every other molecule
-    for p in 0..r {
+    for p in 0..rows {
         if label[p] != Label::None {
             continue;
         }
@@ -132,7 +134,7 @@ fn test_dbscan() {
     }
 
     let m = Matrix::new(v);
-    let got = dbscan(&m, 0.3, 10);
+    let got = dbscan(m.shape().0, &m, 0.3, 10);
     let want: Vec<Label> = std::fs::read_to_string("testfiles/dist.want")
         .unwrap()
         .split_ascii_whitespace()

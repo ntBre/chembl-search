@@ -214,12 +214,20 @@ fn main() -> io::Result<()> {
 
     let mols = load_mols(smiles, &cli, &map[&parameter], existing_inchis);
 
+    eprintln!("mols");
+
     let fps: Vec<_> = make_fps(&mols, cli.radius);
+
+    eprintln!("fps");
 
     let nfps = fps.len();
     let db = distance_matrix(nfps, fps);
 
-    let labels = dbscan(&db, cli.epsilon, cli.min_pts);
+    eprintln!("db");
+
+    let labels = dbscan(db.shape().0, &db, cli.epsilon, cli.min_pts);
+
+    eprintln!("labels");
 
     let max = *labels
         .iter()
