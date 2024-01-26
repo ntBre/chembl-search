@@ -101,7 +101,12 @@ fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
         .collect()
 }
 
-fn load_mols(smiles: Vec<&str>, cli: &Cli, smirks: &String) -> Vec<ROMol> {
+fn load_mols(
+    smiles: Vec<&str>,
+    cli: &Cli,
+    smirks: &String,
+    inchis: HashSet<String>,
+) -> Vec<ROMol> {
     let mut ret: Vec<_> = smiles
         .par_iter()
         .flat_map(|smiles| {
@@ -111,16 +116,44 @@ fn load_mols(smiles: Vec<&str>, cli: &Cli, smirks: &String) -> Vec<ROMol> {
                 mol.openff_clean();
                 if mol.num_atoms() <= cli.max_atoms
                     && !find_smarts_matches(&mol, smirks).is_empty()
+                    && !inchis.contains(&mol.to_inchi_key())
                 {
-                    mols.push(mol)
+                    mols.push((mol.to_smiles(), mol))
                 }
             }
             mols
         })
         .collect();
-    ret.sort_by_key(|mol| mol.to_smiles());
-    ret.dedup_by_key(|mol| mol.to_smiles());
+
+    ret.sort_by_key(|(smiles, _mol)| smiles.clone());
+    ret.dedup_by_key(|(smiles, _mol)| smiles.clone());
+    let (_, ret): (Vec<String>, _) = ret.into_iter().unzip();
     ret
+}
+
+fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
+    let mut db = Matrix::zeros(nfps, nfps);
+
+    let mut combos = Vec::with_capacity(nfps * (nfps - 1) / 2);
+    for i in 0..nfps {
+        db[(i, i)] = 0.0;
+        for j in 0..i {
+            combos.push((i, j));
+        }
+    }
+
+    let combos: Vec<_> = combos
+        .par_iter()
+        .map(|(i, j)| (i, j, tanimoto(&fps[*i], &fps[*j])))
+        .collect();
+
+    // computing 1 - tanimoto here because dbscan groups items with _low_
+    // distance, rather than high similarity
+    for (i, j, t) in combos {
+        db[(*i, *j)] = 1.0 - t;
+        db[(*j, *i)] = 1.0 - t;
+    }
+    db
 }
 
 /// The default DBSCAN parameters are taken from the
@@ -190,22 +223,18 @@ fn main() -> io::Result<()> {
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let mols = load_mols(smiles, &cli, &map[&parameter]);
+    let existing_inchis: HashSet<_> = read_to_string("inchis.dat")
+        .unwrap()
+        .split_ascii_whitespace()
+        .map(|s| s.to_owned())
+        .collect();
+
+    let mols = load_mols(smiles, &cli, &map[&parameter], existing_inchis);
 
     let fps: Vec<_> = make_fps(&mols, cli.radius);
 
     let nfps = fps.len();
-    let mut db = Matrix::zeros(nfps, nfps);
-    // computing 1 - tanimoto here because dbscan groups items with _low_
-    // distance, rather than high similarity
-    for i in 0..nfps {
-        db[(i, i)] = 0.0;
-        for j in 0..i {
-            let t = tanimoto(&fps[i], &fps[j]);
-            db[(i, j)] = 1.0 - t;
-            db[(j, i)] = 1.0 - t;
-        }
-    }
+    let db = distance_matrix(nfps, fps);
 
     let labels = dbscan(&db, cli.epsilon, cli.min_pts);
 
@@ -235,21 +264,6 @@ fn main() -> io::Result<()> {
     // sage-tm opt: 76
     // sage-tm td: 67
     // bench: 154
-
-    let existing_inchis: HashSet<_> = read_to_string("inchis.dat")
-        .unwrap()
-        .split_ascii_whitespace()
-        .map(|s| s.to_owned())
-        .collect();
-    let new_inchis: Vec<_> = mols.iter().map(ROMol::to_inchi_key).collect();
-
-    // filter out molecules with inchi_keys already covered by our existing data
-    // sets; then filter any empty clusters
-    clusters.iter_mut().for_each(|cluster| {
-        cluster
-            .retain(|mol_idx| !existing_inchis.contains(&new_inchis[*mol_idx]));
-    });
-    clusters.retain(|c| !c.is_empty());
 
     let output = Path::new(&cli.smiles_file).with_extension("html");
 
