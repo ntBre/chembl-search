@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use matrix::Matrix;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use rdkit::{
     bitvector::BitVector, find_smarts_matches_mol, fingerprint::tanimoto, ROMol,
 };
@@ -32,24 +32,20 @@ pub fn find_matches(
 pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
     let mut db = Matrix::zeros(nfps, nfps);
 
-    let mut combos = Vec::with_capacity(nfps * (nfps - 1) / 2);
-    for i in 0..nfps {
-        db[(i, i)] = 0.0;
-        for j in 0..i {
-            combos.push((i, j));
-        }
-    }
+    let combos = (0..nfps)
+        .into_iter()
+        .flat_map(|i| (0..i).into_iter().map(move |j| (i, j)));
 
     let combos: Vec<_> = combos
-        .par_iter()
-        .map(|(i, j)| (i, j, tanimoto(&fps[*i], &fps[*j])))
+        .par_bridge()
+        .map(|(i, j)| (i, j, tanimoto(&fps[i], &fps[j])))
         .collect();
 
     // computing 1 - tanimoto here because dbscan groups items with _low_
     // distance, rather than high similarity
     for (i, j, t) in combos {
-        db[(*i, *j)] = 1.0 - t;
-        db[(*j, *i)] = 1.0 - t;
+        db[(i, j)] = 1.0 - t;
+        db[(j, i)] = 1.0 - t;
     }
     db
 }
