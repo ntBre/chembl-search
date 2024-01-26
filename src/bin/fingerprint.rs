@@ -7,10 +7,13 @@ use std::{
 
 use clap::Parser;
 use openff_toolkit::ForceField;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rsearch::{
     cluster::{dbscan, Label},
     matrix::Matrix,
-    rdkit::{find_smarts_matches, fingerprint::tanimoto, ROMol},
+    rdkit::{
+        bitvector::BitVector, find_smarts_matches, fingerprint::tanimoto, ROMol,
+    },
 };
 
 struct Report<'a> {
@@ -92,6 +95,34 @@ impl Report<'_> {
     }
 }
 
+fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
+    mols.par_iter()
+        .map(|mol| mol.morgan_fingerprint_bit_vec::<1024>(radius))
+        .collect()
+}
+
+fn load_mols(smiles: Vec<&str>, cli: &Cli, smirks: &String) -> Vec<ROMol> {
+    let mut ret: Vec<_> = smiles
+        .par_iter()
+        .flat_map(|smiles| {
+            let mut mols = Vec::new();
+            for smiles in smiles.split('.') {
+                let mut mol = ROMol::from_smiles(smiles);
+                mol.openff_clean();
+                if mol.num_atoms() <= cli.max_atoms
+                    && !find_smarts_matches(&mol, smirks).is_empty()
+                {
+                    mols.push(mol)
+                }
+            }
+            mols
+        })
+        .collect();
+    ret.sort_by_key(|mol| mol.to_smiles());
+    ret.dedup_by_key(|mol| mol.to_smiles());
+    ret
+}
+
 /// The default DBSCAN parameters are taken from the
 /// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
 /// qca-dataset-submission repo commit 79ee3a3
@@ -159,30 +190,9 @@ fn main() -> io::Result<()> {
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let mut mols: Vec<_> = smiles
-        .iter()
-        .flat_map(|smiles| {
-            let mut mols = Vec::new();
-            for smiles in smiles.split('.') {
-                let mut mol = ROMol::from_smiles(smiles);
-                mol.openff_clean();
-                if mol.num_atoms() <= cli.max_atoms
-                    && !find_smarts_matches(&mol, &map[&parameter]).is_empty()
-                {
-                    mols.push(mol)
-                }
-            }
-            mols
-        })
-        .collect();
+    let mols = load_mols(smiles, &cli, &map[&parameter]);
 
-    mols.sort_by_key(|mol| mol.to_smiles());
-    mols.dedup_by_key(|mol| mol.to_smiles());
-
-    let fps: Vec<_> = mols
-        .iter()
-        .map(|mol| mol.morgan_fingerprint_bit_vec::<1024>(cli.radius))
-        .collect();
+    let fps: Vec<_> = make_fps(&mols, cli.radius);
 
     let nfps = fps.len();
     let mut db = Matrix::zeros(nfps, nfps);
