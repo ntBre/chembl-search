@@ -32,7 +32,7 @@ profile = RUSTFLAGS=-g cargo build --release --bin $1 \
 			&& perf record --call-graph dwarf target/release/$(strip $1) $2
 
 prof.fingerprint:
-	$(call profile, fingerprint, t18a.smiles -m 10 -p t18a)
+	$(call profile, fingerprint, output/t48a.smiles -m 10 -p t18a)
 
 reports:
 	echo "# $$(date)" > new.dat
