@@ -225,7 +225,8 @@ fn main() -> io::Result<()> {
 
     eprintln!("db");
 
-    let labels = dbscan(db.shape().0, &db, cli.epsilon, cli.min_pts);
+    let (r, c) = db.shape();
+    let labels = dbscan(r, c, |i, j| db[(i, j)], cli.epsilon, cli.min_pts);
 
     eprintln!("labels");
 

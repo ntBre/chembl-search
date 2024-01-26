@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use crate::matrix::Matrix;
-
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum Label {
     Cluster(usize),
@@ -30,11 +28,15 @@ impl std::fmt::Debug for Label {
     }
 }
 
-fn range_query(db: &Matrix<f64>, p: usize, eps: f64) -> HashSet<usize> {
+fn range_query(
+    db: &impl Fn(usize, usize) -> f64,
+    cols: usize,
+    p: usize,
+    eps: f64,
+) -> HashSet<usize> {
     let mut n = HashSet::new();
-    let (_, c) = db.shape();
-    for q in 0..c {
-        if db[(p, q)] <= eps {
+    for q in 0..cols {
+        if db(p, q) <= eps {
             n.insert(q);
         }
     }
@@ -45,7 +47,8 @@ fn range_query(db: &Matrix<f64>, p: usize, eps: f64) -> HashSet<usize> {
 /// "original query-based algorithm" from Wikipedia for now
 pub fn dbscan(
     rows: usize,
-    db: &Matrix<f64>,
+    cols: usize,
+    db: impl Fn(usize, usize) -> f64,
     eps: f64,
     min_pts: usize,
 ) -> Vec<Label> {
@@ -59,7 +62,7 @@ pub fn dbscan(
         }
         // here we have each of those distances, count up the neighbors of the
         // ith molecule. this is basically range_query
-        let n = range_query(db, p, eps);
+        let n = range_query(&db, cols, p, eps);
         if n.len() < min_pts {
             label[p] = Label::Noise;
             continue;
@@ -81,7 +84,7 @@ pub fn dbscan(
                 continue;
             }
             label[q] = Label::Cluster(c);
-            let neighbors = range_query(db, q, eps);
+            let neighbors = range_query(&db, cols, q, eps);
             if neighbors.len() >= min_pts {
                 for n in neighbors {
                     if !s.contains(&n) {
@@ -133,8 +136,9 @@ fn test_dbscan() {
         );
     }
 
-    let m = Matrix::new(v);
-    let got = dbscan(m.shape().0, &m, 0.3, 10);
+    let m = crate::matrix::Matrix::new(v);
+    let (r, c) = m.shape();
+    let got = dbscan(r, c, |i, j| m[(i, j)], 0.3, 10);
     let want: Vec<Label> = std::fs::read_to_string("testfiles/dist.want")
         .unwrap()
         .split_ascii_whitespace()
