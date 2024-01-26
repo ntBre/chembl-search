@@ -150,7 +150,7 @@ fn test_dbscan() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::distance_matrix;
 
     #[test]
     fn test_tanimoto() {
@@ -164,16 +164,7 @@ mod tests {
             fps.push(fp);
         }
 
-        let n = fps.len();
-        let mut got = Matrix::zeros(n, n);
-        for i in 0..n {
-            got[(i, i)] = 1.0;
-            for j in 0..i {
-                let t = crate::rdkit::fingerprint::tanimoto(&fps[i], &fps[j]);
-                got[(i, j)] = t;
-                got[(j, i)] = t;
-            }
-        }
+        let got = distance_matrix(fps.len(), fps);
 
         let want = [
             vec![
@@ -202,8 +193,8 @@ mod tests {
             ],
         ];
 
-        let g: Vec<_> = got.data().iter().flatten().collect();
-        let w: Vec<_> = want.iter().flatten().collect();
+        let g: Vec<_> = got.data().into_iter().flatten().copied().collect();
+        let w: Vec<_> = want.iter().flatten().map(|x| 1.0f64 - x).collect();
         approx::assert_abs_diff_eq!(g.as_slice(), w.as_slice(), epsilon = 1e-4);
     }
 }
