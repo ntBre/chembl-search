@@ -136,7 +136,8 @@ struct Cli {
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    let s = read_to_string(&cli.smiles_file).unwrap();
+    let s = read_to_string(&cli.smiles_file)
+        .expect(&format!("failed to read {}", cli.smiles_file));
 
     let parameter = cli.parameter.clone().unwrap_or_else(|| {
         Path::new(&cli.smiles_file)
