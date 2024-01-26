@@ -193,7 +193,7 @@ mod tests {
             ],
         ];
 
-        let g: Vec<_> = got.data().into_iter().flatten().copied().collect();
+        let g: Vec<_> = got.data().to_vec();
         let w: Vec<_> = want.iter().flatten().map(|x| 1.0f64 - x).collect();
         approx::assert_abs_diff_eq!(g.as_slice(), w.as_slice(), epsilon = 1e-4);
     }
