@@ -168,10 +168,20 @@ struct Cli {
     /// Morgan fingerprinting radius
     #[arg(short, long, default_value_t = 4)]
     radius: u32,
+
+    /// The number of threads to use. Defaults to the number of logical CPUs as
+    /// detected by rayon.
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
 }
 
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(cli.threads)
+        .build_global()
+        .unwrap();
 
     let s = read_to_string(&cli.smiles_file)
         .expect(&format!("failed to read {}", cli.smiles_file));
