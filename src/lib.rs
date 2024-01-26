@@ -38,9 +38,7 @@ pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
     eprintln!("allocated {} elements", nfps * nfps);
 
     // combinations of indices under the diagonal: 0..N, 0..i
-    let combos = (0..nfps)
-        .into_iter()
-        .flat_map(|i| (0..i).into_iter().map(move |j| (i, j)));
+    let combos = (0..nfps).flat_map(|i| (0..i).map(move |j| (i, j)));
 
     let combos = combos
         .par_bridge()

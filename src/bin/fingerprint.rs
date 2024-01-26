@@ -102,7 +102,7 @@ fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
 fn load_mols(
     smiles: Vec<&str>,
     cli: &Cli,
-    smirks: &String,
+    smirks: &str,
     inchis: HashSet<String>,
 ) -> Vec<ROMol> {
     let mut ret: Vec<_> = smiles
@@ -183,8 +183,9 @@ fn main() -> io::Result<()> {
         .build_global()
         .unwrap();
 
-    let s = read_to_string(&cli.smiles_file)
-        .expect(&format!("failed to read {}", cli.smiles_file));
+    let s = read_to_string(&cli.smiles_file).unwrap_or_else(|e| {
+        panic!("failed to read {} for {e}", cli.smiles_file)
+    });
 
     let parameter = cli.parameter.clone().unwrap_or_else(|| {
         Path::new(&cli.smiles_file)
