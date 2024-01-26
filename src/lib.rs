@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use matrix::Matrix;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -30,24 +33,25 @@ pub fn find_matches(
 }
 
 pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
-    let mut db = Matrix::zeros(nfps, nfps);
+    let db = Mutex::new(Matrix::zeros(nfps, nfps));
 
+    // combinations of indices under the diagonal: 0..N, 0..i
     let combos = (0..nfps)
         .into_iter()
         .flat_map(|i| (0..i).into_iter().map(move |j| (i, j)));
 
-    let combos: Vec<_> = combos
+    let combos = combos
         .par_bridge()
-        .map(|(i, j)| (i, j, tanimoto(&fps[i], &fps[j])))
-        .collect();
+        .map(|(i, j)| (i, j, tanimoto(&fps[i], &fps[j])));
 
     // computing 1 - tanimoto here because dbscan groups items with _low_
     // distance, rather than high similarity
-    for (i, j, t) in combos {
+    combos.for_each(|(i, j, t)| {
+        let mut db = db.lock().unwrap();
         db[(i, j)] = 1.0 - t;
         db[(j, i)] = 1.0 - t;
-    }
-    db
+    });
+    db.into_inner().unwrap()
 }
 
 #[cfg(test)]
