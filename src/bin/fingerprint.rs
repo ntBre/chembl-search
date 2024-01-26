@@ -10,8 +10,9 @@ use openff_toolkit::ForceField;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rsearch::{
     cluster::{dbscan, Label},
-    distance_matrix,
-    rdkit::{bitvector::BitVector, find_smarts_matches, ROMol},
+    rdkit::{
+        bitvector::BitVector, find_smarts_matches, fingerprint::tanimoto, ROMol,
+    },
 };
 
 struct Report<'a> {
@@ -222,12 +223,17 @@ fn main() -> io::Result<()> {
     eprintln!("fps");
 
     let nfps = fps.len();
-    let db = distance_matrix(nfps, fps);
+    let distance_fn = |i, j| {
+        if i == j {
+            0.0
+        } else {
+            1.0 - tanimoto(&fps[i], &fps[j])
+        }
+    };
 
     eprintln!("db");
 
-    let (r, c) = db.shape();
-    let labels = dbscan(r, c, |i, j| db[(i, j)], cli.epsilon, cli.min_pts);
+    let labels = dbscan(nfps, nfps, distance_fn, cli.epsilon, cli.min_pts);
 
     eprintln!("labels");
 
