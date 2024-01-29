@@ -3,6 +3,7 @@ use std::{
     fs::read_to_string,
     io::{self, Write},
     path::Path,
+    process::exit,
 };
 
 use clap::Parser;
@@ -229,14 +230,20 @@ fn main() -> io::Result<()> {
 
     let labels = dbscan(nfps, nfps, distance_fn, cli.epsilon, cli.min_pts);
 
-    let max = *labels
+    let max = match labels
         .iter()
         .filter_map(|l| match l {
             Label::Cluster(n) => Some(n),
             _ => None,
         })
         .max()
-        .unwrap();
+    {
+        Some(n) => *n,
+        None => {
+            dbg!(labels);
+            exit(1);
+        }
+    };
 
     // each entry contains a vec of molecule indices (smiles line numbers)
     // corresponding to that cluster. clusters[i] is the ith cluster with
