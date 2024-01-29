@@ -4,9 +4,11 @@ use std::{
     io::{self, Write},
     path::Path,
     process::exit,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use clap::Parser;
+use log::info;
 use openff_toolkit::ForceField;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rsearch::{
@@ -107,27 +109,58 @@ fn load_mols(
     smirks: &str,
     inchis: HashSet<String>,
 ) -> Vec<ROMol> {
+    let too_big = AtomicUsize::new(0);
+    let no_match = AtomicUsize::new(0);
+    let overlap = AtomicUsize::new(0);
+
+    let fragments = AtomicUsize::new(0);
+
     let mut ret: Vec<_> = smiles
         .par_iter()
         .flat_map(|smiles| {
             let mut mols = Vec::new();
             for smiles in smiles.split('.') {
+                fragments.fetch_add(1, Ordering::Relaxed);
                 let mut mol = ROMol::from_smiles(smiles);
                 mol.openff_clean();
-                if mol.num_atoms() <= cli.max_atoms
-                    && !find_smarts_matches(&mol, smirks).is_empty()
-                    && !inchis.contains(&mol.to_inchi_key())
-                {
-                    mols.push((mol.to_smiles(), mol))
+                if mol.num_atoms() > cli.max_atoms {
+                    too_big.fetch_add(1, Ordering::Relaxed);
+                    continue;
                 }
+                if find_smarts_matches(&mol, smirks).is_empty() {
+                    no_match.fetch_add(1, Ordering::Relaxed);
+                    continue;
+                }
+                if inchis.contains(&mol.to_inchi_key()) {
+                    overlap.fetch_add(1, Ordering::Relaxed);
+                    continue;
+                }
+                mols.push((mol.to_smiles(), mol))
             }
             mols
         })
         .collect();
 
+    info!(
+        "expanded initial smiles to {} fragments",
+        fragments.into_inner()
+    );
+
+    let presort = ret.len();
+
     ret.sort_by_key(|(smiles, _mol)| smiles.clone());
     ret.dedup_by_key(|(smiles, _mol)| smiles.clone());
+
+    info!(
+        "filtered {} for size, {} for smirks, {} for inchi, {} for duplicates",
+        too_big.into_inner(),
+        no_match.into_inner(),
+        overlap.into_inner(),
+        presort - ret.len(),
+    );
+
     let (_, ret): (Vec<String>, _) = ret.into_iter().unzip();
+
     ret
 }
 
@@ -178,6 +211,8 @@ struct Cli {
 }
 
 fn main() -> io::Result<()> {
+    env_logger::init();
+
     let cli = Cli::parse();
 
     rayon::ThreadPoolBuilder::new()
@@ -199,6 +234,8 @@ fn main() -> io::Result<()> {
     });
 
     let smiles: Vec<_> = s.lines().collect();
+
+    info!("{} initial smiles", smiles.len());
 
     let map: HashMap<Pid, Smirks> = ForceField::load(&cli.forcefield)
         .unwrap()
