@@ -24,5 +24,5 @@ test_cover = load_coverage(
 
 for w in want:
     p = Path(f"output/{w}.smiles")
-    if not p.exists() and train_cover[w] == 0 and test_cover[w] == 0:
-        print(w)
+    if not p.exists():
+        print(f"{w:<5} {train_cover[w]:5} {test_cover[w]:5}")
