@@ -2,22 +2,24 @@ Initial and Found are in units of molecules, and initial corresponds to my
 coverage check on v2-tm on its training data. Molecules is the number of SMILES
 in the corresponding output file from the initial search
 
+I was using looser epsilon for the parameters with fewer initial molecule
+matches, but 120h, in particular, had several very similar molecules. 0.7 seems
+like a good cutoff for filtering out this kind of thing
+
 #+name: results
 | Parameter | Molecules | Initial | Found |
 |-----------+-----------+---------+-------|
-| t143j     |         2 |       6 |       |
-| t122g     |         3 |       5 |       |
-| t122h     |         3 |       4 |       |
-| t133g     |         4 |       0 |       |
-| t18b      |         8 |       0 |       |
-| t87a      |        14 |       0 |       |
-| t130h     |        18 |       0 |       |
-| t120h     |        19 |       2 |       |
-| t122l     |        19 |       2 |       |
-| t123      |        19 |       0 |       |
-| t42a      |        22 |      13 |       |
-| t102      |        24 |       6 |       |
-| t119h     |        28 |       3 |       |
+| t143j     |         2 |       6 |     2 |
+| t122g     |         3 |       5 |     2 |
+| t133g     |         4 |       0 |     2 |
+| t18b      |         8 |       0 |     2 |
+| t87a      |        14 |       0 |     4 |
+| t130h     |        18 |       0 |     8 |
+| t120h     |        19 |       2 |     5 |
+| t122l     |        19 |       2 |    10 |
+| t42a      |        22 |      13 |     9 |
+| t102      |        24 |       6 |    12 |
+| t119h     |        28 |       3 |     6 |
 | t62g      |        32 |       0 |       |
 | t61g      |        33 |       0 |       |
 | t133h     |        33 |       0 |       |
