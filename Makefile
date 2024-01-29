@@ -24,7 +24,9 @@ clippy:
 	cargo clippy --workspace --tests
 
 run:
-	cargo run --bin rsearch --release -- --output-dir output
+	cargo run --bin rsearch --release -- \
+				--output-dir output \
+				--forcefield tm.v2.offxml
 
 # Usage:
 # $(call profile, bin-name, args...)
