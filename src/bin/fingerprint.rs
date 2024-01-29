@@ -143,7 +143,7 @@ struct Cli {
     max_atoms: usize,
 
     /// The force field to use for parameter labeling.
-    #[arg(short, long, default_value = "openff-2.1.0.offxml")]
+    #[arg(short, long, default_value = "tm.v2.offxml")]
     forcefield: String,
 
     /// The parameter to use when highlighting atoms in the molecules.
