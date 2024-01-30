@@ -90,8 +90,8 @@ like a good cutoff for filtering out this kind of thing
 | t150      |     62029 |       9 |     7 |
 | t81       |     81527 |       1 |    15 |
 | t83h      |     89906 |      12 |    13 |
-| t141c     |    139173 |       9 |       |
-| t141a     |    179719 |      10 |       |
+| t141c     |    139173 |       9 |    26 |
+| t141a     |    179719 |      10 |    13 |
 
 # Local Variables:
 # org-confirm-babel-evaluate: nil
