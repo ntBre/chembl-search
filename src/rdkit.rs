@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::{c_int, c_uint, CStr, CString},
+    fmt::Display,
 };
 
 use bitflags::bitflags;
@@ -42,14 +43,31 @@ impl Drop for SDMolSupplier {
     }
 }
 
+#[derive(Debug)]
+pub struct RDError;
+
+impl Display for RDError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RDError: see stderr for exception info")
+    }
+}
+
+impl std::error::Error for RDError {}
+
 impl Iterator for SDMolSupplier {
-    type Item = ROMol;
+    type Item = Result<ROMol, RDError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.at_end() {
             return None;
         }
-        Some(unsafe { ROMol(RDKit_mol_supplier_next(self.0)) })
+        unsafe {
+            let mol = RDKit_mol_supplier_next(self.0);
+            if mol.is_null() {
+                return Some(Err(RDError));
+            }
+            Some(Ok(ROMol(mol)))
+        }
     }
 }
 

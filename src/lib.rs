@@ -78,7 +78,7 @@ mod tests {
             params.push((p.id(), ROMol::from_smarts(&p.smirks())));
         }
 
-        let mut mol = m.next().unwrap();
+        let mut mol = m.next().unwrap().unwrap();
         mol.openff_clean();
 
         let got = find_matches(&params, &mol);

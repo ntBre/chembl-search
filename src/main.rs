@@ -6,7 +6,7 @@ use clap::Parser;
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
-use rsearch::rdkit::{ROMol, SDMolSupplier};
+use rsearch::rdkit::{RDError, ROMol, SDMolSupplier};
 
 fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
@@ -86,7 +86,14 @@ fn main() {
 
     let progress = AtomicUsize::new(0);
 
-    let map_op = |mut mol: ROMol| -> Vec<(String, String)> {
+    let map_op = |mol: Result<ROMol, RDError>| -> Vec<(String, String)> {
+        let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if cur % 24_000 == 0 {
+            eprintln!("{}% complete", cur / 24_000);
+        }
+        let Ok(mut mol) = mol else {
+            return Vec::new();
+        };
         mol.openff_clean();
 
         let matches = find_matches(&params, &mol);
@@ -98,10 +105,6 @@ fn main() {
                 smiles = Some(mol.to_smiles());
             }
             res.push((pid.to_string(), smiles.clone().unwrap()));
-        }
-        let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if cur % 24_000 == 0 {
-            eprintln!("{}% complete", cur / 24_000);
         }
         res
     };
