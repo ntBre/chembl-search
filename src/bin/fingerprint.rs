@@ -246,7 +246,7 @@ fn main() -> io::Result<()> {
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let existing_inchis: HashSet<_> = read_to_string("inchis.dat")
+    let existing_inchis: HashSet<_> = read_to_string("data/inchis.dat")
         .unwrap()
         .split_ascii_whitespace()
         .map(|s| s.to_owned())

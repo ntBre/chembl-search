@@ -9,3 +9,4 @@ flamegraph.svg
 perf.data*
 
 output/*.smiles
+/data/chembl_33.smiles
