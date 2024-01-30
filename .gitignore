@@ -10,3 +10,4 @@ perf.data*
 
 output/*.smiles
 /data/chembl_33.smiles
+/NCI-Open_2012-05-01.sdf
