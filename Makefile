@@ -28,6 +28,9 @@ run:
 				--output-dir output \
 				--forcefield tm.v2.offxml
 
+all.smiles:
+	find . -name '*.html' | xargs ./aggregate.awk > $@
+
 # Usage:
 # $(call profile, bin-name, args...)
 profile = RUSTFLAGS=-g cargo build --release --bin $1 \
