@@ -16,7 +16,7 @@ pub mod rdkit;
 pub mod cluster;
 pub mod matrix;
 
-/// load a sequence of whitespace-separated entries from `path` and collect them
+/// load a sequence of newline-separated entries from `path` and collect them
 /// into a HashSet
 pub fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
