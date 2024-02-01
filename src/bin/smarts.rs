@@ -77,12 +77,7 @@ fn main() {
         }
         res
     };
-    let results: Vec<_> = m
-        .into_iter()
-        .take(100_000)
-        .par_bridge()
-        .flat_map(map_op)
-        .collect();
+    let results: Vec<_> = m.into_iter().par_bridge().flat_map(map_op).collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
     for (label, _) in params {
