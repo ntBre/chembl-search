@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    path::Path,
     sync::Mutex,
 };
 
@@ -14,6 +15,35 @@ pub mod rdkit;
 
 pub mod cluster;
 pub mod matrix;
+
+/// load a sequence of whitespace-separated entries from `path` and collect them
+/// into a HashSet
+pub fn load_want(path: &str) -> HashSet<String> {
+    std::fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|s| s.trim().to_owned())
+        .collect()
+}
+
+pub fn print_output(res: HashMap<String, Vec<String>>) {
+    for (pid, moles) in res {
+        for mol in moles {
+            println!("{pid}\t{mol}");
+        }
+    }
+}
+
+pub fn write_output(dir: impl AsRef<Path>, res: HashMap<String, Vec<String>>) {
+    use std::io::Write;
+    for (pid, moles) in res {
+        let path = dir.as_ref().join(pid).with_extension("smiles");
+        let mut f = std::fs::File::create(path).unwrap();
+        for mol in moles {
+            writeln!(f, "{mol}").unwrap();
+        }
+    }
+}
 
 /// returns the set of parameter ids matching `mol`. matching starts with the
 /// first parameter and proceeds through the whole sequence of parameters, so

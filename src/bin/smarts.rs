@@ -1,33 +1,26 @@
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::atomic::AtomicUsize;
+//! Like the main rsearch program, but instead of searching by parameters in a
+//! force field, simply read a sequence of SMARTS patterns and return molecules
+//! matching those.
+
+use std::{collections::HashMap, path::Path, sync::atomic::AtomicUsize};
 
 use clap::Parser;
-use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use rsearch::rdkit::{RDError, ROMol, SDMolSupplier};
-use rsearch::{find_matches, load_want, print_output, write_output};
+use rsearch::{
+    load_want, print_output,
+    rdkit::{find_smarts_matches_mol, RDError, ROMol, SDMolSupplier},
+    write_output,
+};
 
 #[derive(Parser)]
 struct Cli {
-    /// The OpenFF force field to load from the toolkit.
-    #[arg(short, long, default_value = "openff-2.1.0.offxml")]
-    forcefield: String,
-
-    /// The `Parameter` type for which to extract parameters. Allowed options
-    /// are valid arguments to `ForceField.get_parameter_handler`, such as
-    /// Bonds, Angles, or ProperTorsions.
-    #[arg(short, long, default_value = "ProperTorsions")]
-    parameter_type: String,
-
     /// The path to the SDF file from which to read Molecules.
     #[arg(short, long, default_value = "chembl_33.sdf")]
     molecule_file: String,
 
-    /// The path to the file listing the parameter identifiers to match against,
-    /// one per line. These must correspond to parameters in the provided
-    /// forcefield.
-    #[arg(short, long, default_value = "want.params")]
+    /// The path to the file listing the parameter SMIRKS to match against, one
+    /// per line.
+    #[arg(short, long, default_value = "want.smirks")]
     search_params: String,
 
     /// The number of threads to use. Defaults to the number of logical CPUs as
@@ -44,14 +37,11 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     let m = SDMolSupplier::new(cli.molecule_file);
-    let ff = ForceField::load(&cli.forcefield).unwrap();
-    let h = ff.get_parameter_handler(&cli.parameter_type).unwrap();
-    let mut params = Vec::new();
-    for p in h.parameters() {
-        params.push((p.id(), ROMol::from_smarts(&p.smirks())));
-    }
-
-    let want = load_want(&cli.search_params);
+    let params: Vec<_> = load_want(&cli.search_params)
+        .into_iter()
+        .enumerate()
+        .map(|(i, smirks)| (i.to_string(), ROMol::from_smarts(&smirks)))
+        .collect();
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(cli.threads)
@@ -70,15 +60,15 @@ fn main() {
         };
         mol.openff_clean();
 
-        let matches = find_matches(&params, &mol);
-
+        let mut smiles = None; /* cache for to_smiles */
         let mut res: Vec<(String, String)> = Vec::new();
-        let mut smiles = None;
-        for pid in matches.intersection(&want) {
-            if smiles.is_none() {
-                smiles = Some(mol.to_smiles());
+        for (pid, smirks) in &params {
+            if !find_smarts_matches_mol(&mol, smirks).is_empty() {
+                if smiles.is_none() {
+                    smiles = Some(mol.to_smiles());
+                }
+                res.push((pid.to_string(), smiles.clone().unwrap()));
             }
-            res.push((pid.to_string(), smiles.clone().unwrap()));
         }
         res
     };
