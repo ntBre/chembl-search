@@ -8,6 +8,8 @@ use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::find_matches;
 use rsearch::rdkit::{RDError, ROMol, SDMolSupplier};
 
+/// load a sequence of whitespace-separated entries from `path` and collect them
+/// into a HashSet
 fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
         .unwrap()
@@ -51,8 +53,9 @@ struct Cli {
     #[arg(short, long, default_value = "chembl_33.sdf")]
     molecule_file: String,
 
-    /// The path to the file listing the parameters to match against, one per
-    /// line.
+    /// The path to the file listing the parameter identifiers to match against,
+    /// one per line. These must correspond to parameters in the provided
+    /// forcefield.
     #[arg(short, long, default_value = "want.params")]
     search_params: String,
 
