@@ -85,9 +85,18 @@ fn main() {
         .collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
-    for (pid, mol) in results {
-        res.entry(pid.to_string()).or_default().push(mol);
+    for (label, _) in params {
+        res.insert(label, Vec::new());
     }
+    for (pid, mol) in results {
+        res.entry(pid.to_string()).and_modify(|mols| mols.push(mol));
+    }
+
+    println!("Summary:");
+    for (pid, mols) in &res {
+        println!("{pid} {}", mols.len());
+    }
+    println!("-----------------------------------");
 
     if let Some(dir) = cli.output_dir {
         let dir = Path::new(&dir);
