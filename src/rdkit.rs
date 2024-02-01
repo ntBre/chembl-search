@@ -376,6 +376,8 @@ pub fn find_smarts_matches(mol: &ROMol, smarts: &str) -> Vec<Vec<usize>> {
     }
 }
 
+/// returns the sequence of chemical environment "tuples" that match `smarts` in
+/// `mol`.
 pub fn find_smarts_matches_mol(mol: &ROMol, smarts: &ROMol) -> Vec<Vec<usize>> {
     let mut len = 0;
     let mut match_size = 0;
