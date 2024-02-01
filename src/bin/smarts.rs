@@ -19,7 +19,7 @@ struct Cli {
     molecule_file: String,
 
     /// The path to the file listing the parameter SMIRKS to match against, one
-    /// per line.
+    /// per line, followed by a label.
     #[arg(short, long, default_value = "want.smirks")]
     search_params: String,
 
@@ -39,8 +39,13 @@ fn main() {
     let m = SDMolSupplier::new(cli.molecule_file);
     let params: Vec<_> = load_want(&cli.search_params)
         .into_iter()
-        .enumerate()
-        .map(|(i, smirks)| (i.to_string(), ROMol::from_smarts(&smirks)))
+        .map(|s| {
+            let sp: Vec<_> = s.split_ascii_whitespace().collect();
+            assert_eq!(sp.len(), 2);
+            let smirks = sp[0];
+            let label = sp[1];
+            (label.to_owned(), ROMol::from_smarts(&smirks))
+        })
         .collect();
 
     rayon::ThreadPoolBuilder::new()
@@ -72,7 +77,12 @@ fn main() {
         }
         res
     };
-    let results: Vec<_> = m.into_iter().par_bridge().flat_map(map_op).collect();
+    let results: Vec<_> = m
+        .into_iter()
+        .take(100_000)
+        .par_bridge()
+        .flat_map(map_op)
+        .collect();
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
     for (pid, mol) in results {
