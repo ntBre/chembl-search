@@ -14,6 +14,8 @@ use rdkit_sys::{
 
 use self::bitvector::BitVector;
 
+pub mod fragment;
+
 pub struct SDMolSupplier(*mut RDKit_SDMolSupplier);
 
 unsafe impl Send for SDMolSupplier {}
@@ -313,6 +315,12 @@ impl ROMol {
             );
             CString::from_raw(s).to_str().unwrap().to_owned()
         }
+    }
+}
+
+impl Clone for ROMol {
+    fn clone(&self) -> Self {
+        unsafe { Self(rdkit_sys::RDKit_ROMol_copy(self.0)) }
     }
 }
 
