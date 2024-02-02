@@ -1,5 +1,4 @@
 __pycache__/
-/chembl_33.sdf
 /cpp/search
 /cpp/tester
 /target/
@@ -8,7 +7,8 @@ __pycache__/
 flamegraph.svg
 perf.data*
 
-output/*.smiles
+output/**/*.smiles
 /data/chembl_33.smiles
-/NCI-Open_2012-05-01.sdf
-/ZINC-downloader-3D-sdf.gz.curl
+NCI-Open_2012-05-01.sdf
+ZINC-downloader-3D-sdf.gz.curl
+chembl_33.sdf
