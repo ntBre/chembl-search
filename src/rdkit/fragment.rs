@@ -253,8 +253,35 @@ mod tests {
         let smiles = "[H]/C(=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])C(SSC(/C([H])=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H]";
         let mol = ROMol::from_smiles(smiles);
         let node = recap_decompose(&mol, None);
-        for (smi, leaf) in node.borrow().children.iter() {
-            dbg!(smi);
+        // this is GetLeaves
+        let mut res: HashMap<String, ROMol> = HashMap::new();
+        for (smi, child) in node.borrow().children.iter() {
+            if child.borrow().children.is_empty() {
+                res.insert(
+                    smi.clone(),
+                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
+                );
+            } else {
+                gac_recurse(child, &mut res, true);
+            }
+        }
+
+        dbg!(res.keys().collect::<Vec<_>>());
+    }
+
+    fn gac_recurse(
+        child: &RefCell<RecapHierarchyNode>,
+        res: &mut HashMap<String, ROMol>,
+        terminal_only: bool,
+    ) {
+        for (smi, child) in child.borrow().children.iter() {
+            if !terminal_only || child.borrow().children.is_empty() {
+                res.insert(
+                    smi.clone(),
+                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
+                );
+            }
+            gac_recurse(child, res, terminal_only);
         }
     }
 }
