@@ -1,14 +1,12 @@
 import logging
 import pathlib
 import typing
-from collections import defaultdict
 
 import click
-from click_option_group import optgroup
-
-from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, Recap
 import tqdm
+from click_option_group import optgroup
+from rdkit import Chem
+from rdkit.Chem import AllChem, Descriptors
 
 
 def canonical_smiles(rd_molecule: Chem.Mol) -> str:
@@ -40,10 +38,14 @@ def fragment_single(parent_smiles: str):
     ):
         return set()
 
-    rdbonds = tuple([
-        rd_parent.GetBondBetweenAtoms(bond.atom1_index, bond.atom2_index).GetIdx()
-        for bond in bonds
-    ])
+    rdbonds = tuple(
+        [
+            rd_parent.GetBondBetweenAtoms(
+                bond.atom1_index, bond.atom2_index
+            ).GetIdx()
+            for bond in bonds
+        ]
+    )
     if len(rdbonds):
         fragmented = Chem.FragmentOnBonds(rd_parent, rdbonds)
     else:
@@ -56,11 +58,14 @@ def fragment_single(parent_smiles: str):
             rd_fragment = AllChem.ReplaceSubstructs(
                 rd_fragment, rd_dummy, rd_replacement, True
             )[0]
-            # Do a SMILES round-trip to avoid weird issues with radical formation...
+            # Do a SMILES round-trip to avoid weird issues with radical
+            # formation...
             rd_fragment = Chem.MolFromSmiles(Chem.MolToSmiles(rd_fragment))
 
         if Descriptors.NumRadicalElectrons(rd_fragment) > 0:
-            logging.warning(f"A fragment of {parent_smiles} has a radical electron")
+            logging.warning(
+                f"A fragment of {parent_smiles} has a radical electron"
+            )
             continue
 
         fragment_smiles = canonical_smiles(rd_fragment)
@@ -72,11 +77,13 @@ def fragment_single(parent_smiles: str):
         all_fragment_smiles.add(fragment_smiles)
     return all_fragment_smiles
 
+
 def batch_fragment(smiles_list: list):
     unique_fragments = set()
     for parent_smiles in tqdm.tqdm(smiles_list):
         unique_fragments |= fragment_single(parent_smiles)
     return unique_fragments
+
 
 @click.option(
     "--input",
@@ -96,8 +103,8 @@ def batch_fragment(smiles_list: list):
 @optgroup.group("Parallelization configuration")
 @optgroup.option(
     "--n-workers",
-    help="The number of workers to distribute the labelling across. Use -1 to request "
-    "one worker per batch.",
+    help="The number of workers to distribute the labelling across. "
+    "Use -1 to request one worker per batch.",
     type=int,
     default=1,
     show_default=True,
@@ -111,7 +118,7 @@ def batch_fragment(smiles_list: list):
 )
 @optgroup.option(
     "--batch-size",
-    help="The number of molecules to processes at once on a particular worker.",
+    help="The number of molecules to processes at once on a single worker.",
     type=int,
     default=500,
     show_default=True,
@@ -143,7 +150,6 @@ def batch_fragment(smiles_list: list):
     help="The conda environment that LSF workers should run using.",
     type=str,
 )
-
 @click.command()
 def main(
     input_paths,
@@ -156,8 +162,8 @@ def main(
     batch_size: int = 300,
     n_workers: int = -1,
 ):
-    from openff.nagl.utils._parallelization import batch_distributed
     from dask import distributed
+    from openff.nagl.utils._parallelization import batch_distributed
 
     # Load in the molecules to fragment
     all_parent_smiles = set()
@@ -186,14 +192,13 @@ def main(
         walltime=walltime,
         n_workers=n_workers,
     ) as batcher:
-
         futures = list(batcher(batch_fragment))
 
         with open(full_path, "w") as file:
             for future in tqdm.tqdm(
                 distributed.as_completed(futures, raise_errors=False),
                 total=len(futures),
-                desc="Saving"
+                desc="Saving",
             ):
                 fragment_smiles = future.result()
                 new_fragment_smiles = fragment_smiles - all_fragment_smiles
@@ -201,6 +206,7 @@ def main(
                 file.write("\n".join(new_fragment_smiles))
                 file.write("\n")
                 all_fragment_smiles |= fragment_smiles
+
 
 if __name__ == "__main__":
     main()

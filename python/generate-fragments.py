@@ -4,11 +4,10 @@ import typing
 from collections import defaultdict
 
 import click
+import tqdm
 from click_option_group import optgroup
-
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Recap
-import tqdm
 
 
 def canonical_smiles(rd_molecule: Chem.Mol) -> str:
@@ -30,7 +29,6 @@ def fragment_single(parent_smiles: str):
     rd_parent: Chem.Mol = Chem.MolFromSmiles(parent_smiles)
     if rd_parent is None:
         return unique_fragments_by_n_heavy
-    
 
     if any(
         rd_atom.GetNumRadicalElectrons() != 0
@@ -49,11 +47,14 @@ def fragment_single(parent_smiles: str):
             rd_fragment = AllChem.ReplaceSubstructs(
                 rd_fragment, rd_dummy, rd_replacement, True
             )[0]
-            # Do a SMILES round-trip to avoid weird issues with radical formation...
+            # Do a SMILES round-trip to avoid weird issues with radical
+            # formation...
             rd_fragment = Chem.MolFromSmiles(Chem.MolToSmiles(rd_fragment))
 
         if Descriptors.NumRadicalElectrons(rd_fragment) > 0:
-            logging.warning(f"A fragment of {parent_smiles} has a radical electron")
+            logging.warning(
+                f"A fragment of {parent_smiles} has a radical electron"
+            )
             continue
 
         fragment_smiles = canonical_smiles(rd_fragment)
@@ -66,6 +67,7 @@ def fragment_single(parent_smiles: str):
         unique_fragments_by_n_heavy[n_heavy].add(fragment_smiles)
     return unique_fragments_by_n_heavy
 
+
 def batch_fragment(smiles_list: list):
     unique_fragments_by_n_heavy = defaultdict(set)
     for parent_smiles in tqdm.tqdm(smiles_list):
@@ -73,6 +75,7 @@ def batch_fragment(smiles_list: list):
         for n_heavy, fragment_smiles in parent_fragments_by_n_heavy.items():
             unique_fragments_by_n_heavy[n_heavy] |= fragment_smiles
     return unique_fragments_by_n_heavy
+
 
 @click.option(
     "--input",
@@ -92,8 +95,8 @@ def batch_fragment(smiles_list: list):
 @optgroup.group("Parallelization configuration")
 @optgroup.option(
     "--n-workers",
-    help="The number of workers to distribute the labelling across. Use -1 to request "
-    "one worker per batch.",
+    help="The number of workers to distribute the labelling across. "
+    "Use -1 to request one worker per batch.",
     type=int,
     default=1,
     show_default=True,
@@ -107,7 +110,7 @@ def batch_fragment(smiles_list: list):
 )
 @optgroup.option(
     "--batch-size",
-    help="The number of molecules to processes at once on a particular worker.",
+    help="The number of molecules to processes at once on a single worker.",
     type=int,
     default=500,
     show_default=True,
@@ -139,7 +142,6 @@ def batch_fragment(smiles_list: list):
     help="The conda environment that LSF workers should run using.",
     type=str,
 )
-
 @click.command()
 def main(
     input_paths,
@@ -152,8 +154,8 @@ def main(
     batch_size: int = 300,
     n_workers: int = -1,
 ):
-    from openff.nagl.utils._parallelization import batch_distributed
     from dask import distributed
+    from openff.nagl.utils._parallelization import batch_distributed
 
     # Load in the molecules to fragment
     all_parent_smiles = set()
@@ -167,7 +169,7 @@ def main(
     all_parent_smiles = sorted(all_parent_smiles, key=len, reverse=True)
     print(f"Found {len(all_parent_smiles)} parent molecules")
 
-    unique_fragments_by_n_heavy = defaultdict(set)
+    uniq_frags_by_n_heavy = defaultdict(set)
 
     with batch_distributed(
         all_parent_smiles,
@@ -179,16 +181,15 @@ def main(
         walltime=walltime,
         n_workers=n_workers,
     ) as batcher:
-
         futures = list(batcher(batch_fragment))
         for future in tqdm.tqdm(
             distributed.as_completed(futures, raise_errors=False),
             total=len(futures),
-            desc="Saving"
+            desc="Saving",
         ):
             fragments_by_n_heavy = future.result()
             for n_heavy, fragment_smiles in fragments_by_n_heavy.items():
-                unique_fragments_by_n_heavy[n_heavy] |= fragment_smiles
+                uniq_frags_by_n_heavy[n_heavy] |= fragment_smiles
 
     output_directory = pathlib.Path(output_directory)
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -199,7 +200,7 @@ def main(
         file.write(
             "\n".join(
                 fragment_pattern
-                for n_heavy, fragment_smiles in unique_fragments_by_n_heavy.items()
+                for n_heavy, fragment_smiles in uniq_frags_by_n_heavy.items()
                 for fragment_pattern in fragment_smiles
             )
         )
@@ -207,7 +208,7 @@ def main(
     small_fragments = [
         fragment_pattern
         for n_heavy in range(3, 13)
-        for fragment_pattern in unique_fragments_by_n_heavy[n_heavy]
+        for fragment_pattern in uniq_frags_by_n_heavy[n_heavy]
     ]
 
     with small_path.open("w") as file:

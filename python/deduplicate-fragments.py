@@ -1,21 +1,15 @@
-import logging
-import pathlib
 import typing
 from collections import defaultdict
 
 import click
-from click_option_group import optgroup
-
-from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, Recap
 import tqdm
+from rdkit import Chem
 
 
 def canonical_smiles(rd_molecule: Chem.Mol) -> str:
     return Chem.MolToSmiles(
         Chem.AddHs(rd_molecule), isomericSmiles=False, canonical=True
     )
-
 
 
 @click.command()
@@ -43,8 +37,8 @@ def deduplicate(
     reference_files: typing.List[str],
     output_file: str,
 ):
-    from openff.toolkit.topology.molecule import Molecule
     from openff.nagl.toolkits.openff import capture_toolkit_warnings
+    from openff.toolkit.topology.molecule import Molecule
 
     reference_smiles = defaultdict(set)
     for reference_file in reference_files:
@@ -58,7 +52,7 @@ def deduplicate(
                 elements.append(atom.GetSymbol())
             elements = tuple(sorted(elements))
             reference_smiles[elements].add(canonical_smiles(rdmol))
-    
+
     target_smiles = defaultdict(set)
     with open(input_file, "r") as f:
         smiles = [x.strip() for x in f.readlines()]
@@ -77,17 +71,20 @@ def deduplicate(
         else:
             target_smiles[elements].add(canonical)
 
-
     smiles_to_keep = []
     with capture_toolkit_warnings():
-        for key, targets in tqdm.tqdm(target_smiles.items(), total=len(target_smiles)):
+        for key, targets in tqdm.tqdm(
+            target_smiles.items(), total=len(target_smiles)
+        ):
             references = reference_smiles[key]
             reference_molecules = [
                 Molecule.from_smiles(ref, allow_undefined_stereo=True)
                 for ref in references
             ]
             for target in tqdm.tqdm(targets, desc=f"{key}"):
-                offmol = Molecule.from_smiles(target, allow_undefined_stereo=True)
+                offmol = Molecule.from_smiles(
+                    target, allow_undefined_stereo=True
+                )
                 if any(
                     offmol.is_isomorphic_with(other)
                     for other in reference_molecules
@@ -101,7 +98,5 @@ def deduplicate(
         f.write("\n".join(smiles_to_keep))
 
 
-
-        
 if __name__ == "__main__":
     deduplicate()
