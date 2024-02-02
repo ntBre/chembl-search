@@ -9,11 +9,7 @@ from click_option_group import optgroup
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Recap
 
-
-def canonical_smiles(rd_molecule: Chem.Mol) -> str:
-    return Chem.MolToSmiles(
-        Chem.AddHs(rd_molecule), isomericSmiles=False, canonical=True
-    )
+from common import canonical_smiles
 
 
 def fragment_single(parent_smiles: str):
