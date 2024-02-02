@@ -44,7 +44,7 @@ fn main() {
             assert_eq!(sp.len(), 2);
             let smirks = sp[0];
             let label = sp[1];
-            (label.to_owned(), ROMol::from_smarts(&smirks))
+            (label.to_owned(), ROMol::from_smarts(smirks))
         })
         .collect();
 
