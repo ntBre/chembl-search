@@ -33,7 +33,7 @@ type Node = Rc<RefCell<RecapHierarchyNode>>;
 pub struct RecapResult(Node);
 
 impl RecapResult {
-    fn get_leaves(&self) -> HashMap<String, ROMol> {
+    pub fn get_leaves(&self) -> HashMap<String, ROMol> {
         let mut res: HashMap<String, ROMol> = HashMap::new();
         for (smi, child) in self.0.borrow().children.iter() {
             if child.borrow().children.is_empty() {
@@ -261,11 +261,11 @@ impl ChemicalReaction {
     }
 }
 
-pub struct RecapHierarchyNode {
-    pub mol: Option<Rc<ROMol>>,
-    pub children: HashMap<String, Node>,
-    pub parents: HashMap<String, Node>,
-    pub smiles: Option<String>,
+struct RecapHierarchyNode {
+    mol: Option<Rc<ROMol>>,
+    children: HashMap<String, Node>,
+    parents: HashMap<String, Node>,
+    smiles: Option<String>,
 }
 
 impl RecapHierarchyNode {
