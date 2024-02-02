@@ -28,9 +28,44 @@ const REACTION_DEFS: [&str; 12] = [
     "[#7;+0;D2,D3:1]-!@[S:2](=[O:3])=[O:4]>>[#7:1]*.*[S:2](=[O:3])=[O:4]", // sulphonamide
 ];
 
-pub type Node = Rc<RefCell<RecapHierarchyNode>>;
+type Node = Rc<RefCell<RecapHierarchyNode>>;
 
-pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> Node {
+pub struct RecapResult(Node);
+
+impl RecapResult {
+    fn get_leaves(&self) -> HashMap<String, ROMol> {
+        let mut res: HashMap<String, ROMol> = HashMap::new();
+        for (smi, child) in self.0.borrow().children.iter() {
+            if child.borrow().children.is_empty() {
+                res.insert(
+                    smi.clone(),
+                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
+                );
+            } else {
+                Self::gac_recurse(child, &mut res, true);
+            }
+        }
+        res
+    }
+
+    fn gac_recurse(
+        child: &RefCell<RecapHierarchyNode>,
+        res: &mut HashMap<String, ROMol>,
+        terminal_only: bool,
+    ) {
+        for (smi, child) in child.borrow().children.iter() {
+            if !terminal_only || child.borrow().children.is_empty() {
+                res.insert(
+                    smi.clone(),
+                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
+                );
+            }
+            Self::gac_recurse(child, res, terminal_only);
+        }
+    }
+}
+
+pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
     // TODO make this lazy static
     let reactions: Vec<_> = REACTION_DEFS
         .iter()
@@ -52,7 +87,7 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> Node {
     let only_use_reactions: Option<HashSet<usize>> = None;
 
     if all_nodes.contains_key(&msmi) {
-        return all_nodes.remove(&msmi).unwrap();
+        return RecapResult(all_nodes.remove(&msmi).unwrap());
     }
 
     let mut res = RecapHierarchyNode::new(Rc::new(mol.clone()));
@@ -166,7 +201,7 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> Node {
             }
         }
     }
-    res
+    RecapResult(res)
 }
 
 struct ChemicalReaction(*mut rdkit_sys::RDKit_ChemicalReaction);
@@ -250,38 +285,18 @@ mod tests {
 
     #[test]
     fn test_recap() {
-        let smiles = "[H]/C(=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])C(SSC(/C([H])=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H]";
+        let smiles = "[H]/C(=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])\
+C(SSC(/C([H])=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])(C([H])([H])C([H])\
+([H])[H])C([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])\
+([H])[H]";
         let mol = ROMol::from_smiles(smiles);
-        let node = recap_decompose(&mol, None);
-        // this is GetLeaves
-        let mut res: HashMap<String, ROMol> = HashMap::new();
-        for (smi, child) in node.borrow().children.iter() {
-            if child.borrow().children.is_empty() {
-                res.insert(
-                    smi.clone(),
-                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
-                );
-            } else {
-                gac_recurse(child, &mut res, true);
-            }
-        }
+        let fragments = recap_decompose(&mol, None);
+        let got = fragments.get_leaves();
+        let want = ["*OCC", r#"*C(=O)C/N=C\C(CC)(CC)SSC(/C=N/CC(*)=O)(CC)CC"#];
+        assert_eq!(got.len(), want.len());
 
-        dbg!(res.keys().collect::<Vec<_>>());
-    }
-
-    fn gac_recurse(
-        child: &RefCell<RecapHierarchyNode>,
-        res: &mut HashMap<String, ROMol>,
-        terminal_only: bool,
-    ) {
-        for (smi, child) in child.borrow().children.iter() {
-            if !terminal_only || child.borrow().children.is_empty() {
-                res.insert(
-                    smi.clone(),
-                    child.borrow().mol.as_ref().unwrap().as_ref().clone(),
-                );
-            }
-            gac_recurse(child, res, terminal_only);
+        for w in want {
+            assert!(got.contains_key(w));
         }
     }
 }
