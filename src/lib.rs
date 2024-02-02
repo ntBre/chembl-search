@@ -65,8 +65,6 @@ pub fn find_matches(
 pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
     let db = Mutex::new(Matrix::zeros(nfps, nfps));
 
-    eprintln!("allocated {} elements", nfps * nfps);
-
     // combinations of indices under the diagonal: 0..N, 0..i
     let combos = (0..nfps).flat_map(|i| (0..i).map(move |j| (i, j)));
 
