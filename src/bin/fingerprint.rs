@@ -14,7 +14,8 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rsearch::{
     cluster::{dbscan, Label},
     rdkit::{
-        bitvector::BitVector, find_smarts_matches, fingerprint::tanimoto, ROMol,
+        bitvector::BitVector, find_smarts_matches, fingerprint::tanimoto,
+        fragment::recap_decompose, ROMol,
     },
 };
 
@@ -124,14 +125,51 @@ fn load_mols(
 
     let fragments = AtomicUsize::new(0);
 
+    // from Lily's example
+    let dummy_replacements = [
+        // Handle the special case of -S(=O)(=O)[*] -> -S(=O)(-[O-])
+        (
+            ROMol::from_smiles("S(=O)(=O)*"),
+            ROMol::from_smiles("S(=O)([O-])"),
+        ),
+        // Handle the general case
+        (ROMol::from_smiles("*"), ROMol::from_smiles("[H]")),
+    ];
+
     let mut ret: Vec<_> = smiles
         .par_iter()
         .flat_map(|smiles| {
-            let mut mols = Vec::new();
-            for smiles in smiles.split('.') {
-                fragments.fetch_add(1, Ordering::Relaxed);
+            let tmp = smiles.split('.').map(|smiles| {
                 let mut mol = ROMol::from_smiles(smiles);
                 mol.openff_clean();
+                mol
+            });
+
+            let mols: Box<dyn Iterator<Item = ROMol>> = if cli.fragment {
+                Box::new(tmp.flat_map(|mol| {
+                    recap_decompose(&mol, None)
+                        .get_leaves()
+                        .into_values()
+                        .map(|mut m| {
+                            for (inp, out) in &dummy_replacements {
+                                m = m
+                                    .replace_substructs(inp, out, true)
+                                    .remove(0);
+                            }
+                            let smiles = m.to_smiles();
+                            m = ROMol::from_smiles(&smiles);
+                            m.openff_clean();
+                            m
+                        })
+                        .collect::<Vec<_>>()
+                }))
+            } else {
+                Box::new(tmp)
+            };
+
+            let mut ret = Vec::new();
+            for mol in mols {
+                fragments.fetch_add(1, Ordering::Relaxed);
                 if mol.num_atoms() > cli.max_atoms {
                     too_big.fetch_add(1, Ordering::Relaxed);
                     continue;
@@ -144,9 +182,9 @@ fn load_mols(
                     overlap.fetch_add(1, Ordering::Relaxed);
                     continue;
                 }
-                mols.push((mol.to_smiles(), mol))
+                ret.push((mol.to_smiles(), mol))
             }
-            mols
+            ret
         })
         .collect();
 
@@ -217,6 +255,11 @@ struct Cli {
     /// detected by rayon.
     #[arg(short, long, default_value_t = 0)]
     threads: usize,
+
+    /// Whether or not to fragment the molecules before the fingerprinting
+    /// analysis.
+    #[arg(short = 'x', long, default_value_t = false)]
+    fragment: bool,
 }
 
 fn main() -> io::Result<()> {
