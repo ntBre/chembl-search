@@ -11,7 +11,7 @@ export LD_LIBRARY_PATH=$(RDKIT_SYS_PATH):$(RDKIT_PATH)/build/lib
 # parsing smiles file output from main chembl search to cluster by morgan
 # fingerprint and report results
 fingerprint:
-	cargo run --bin fingerprint --release -- t18a.smiles --min-pts 10 -p t18a
+	cargo run --bin fingerprint --release -- output/t18a.smiles --min-pts 10 -p t18a
 
 # generate a set of inchi keys for our existing training and benchmark datasets
 inchis.dat: src/bin/inchis.rs
