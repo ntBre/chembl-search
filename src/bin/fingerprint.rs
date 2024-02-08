@@ -330,6 +330,7 @@ fn main() -> io::Result<()> {
         Some(n) => *n,
         None => {
             dbg!(labels);
+            eprintln!("error: all noise points, exiting");
             exit(1);
         }
     };
