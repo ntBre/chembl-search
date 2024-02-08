@@ -65,6 +65,22 @@ impl RecapResult {
     }
 }
 
+/// Decompose a molecule into fragments using the RECAP algorithm.
+///
+/// Basic usage looks like this:
+///
+/// ```text
+/// let fragments = recap_decompose(&mol, None);
+/// let got = fragments.get_leaves();
+/// let want = ["*OCC", r#"*C(=O)C/N=C\C(CC)(CC)SSC(/C=N/CC(*)=O)(CC)CC"#];
+/// ```
+///
+/// Pass an [ROMol] to [recap_decompose], which returns a [RecapResult]. The
+/// most useful method on this result is [RecapResult::get_leaves], which
+/// returns a sequence of leaf nodes (a HashMap of SMILES to ROMol) from the
+/// recap tree. As shown in the example above, these will contain `*`s where the
+/// fragments have been separated, so you may need to replace these with
+/// hydrogens before the fragments are usable.
 pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
     // TODO make this lazy static
     let reactions: Vec<_> = REACTION_DEFS
