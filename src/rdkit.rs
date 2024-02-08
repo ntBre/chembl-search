@@ -316,6 +316,30 @@ impl ROMol {
             CString::from_raw(s).to_str().unwrap().to_owned()
         }
     }
+
+    pub fn replace_substructs(
+        &self,
+        query: &ROMol,
+        replacement: &ROMol,
+        all: bool,
+    ) -> Vec<ROMol> {
+        unsafe {
+            let mut len = 0;
+            let res = rdkit_sys::RDKit_ReplaceSubstructs(
+                self.0,
+                query.0,
+                replacement.0,
+                all,
+                &mut len,
+            );
+            assert!(!res.is_null());
+            let mut ret = Vec::with_capacity(len);
+            for i in 0..len {
+                ret.push(ROMol(*res.offset(i as isize)));
+            }
+            ret
+        }
+    }
 }
 
 impl Clone for ROMol {
