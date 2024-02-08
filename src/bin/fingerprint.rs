@@ -55,7 +55,16 @@ impl Report<'_> {
             .map(|p| (p.id(), p.smirks()))
             .collect();
 
-        for (i, c) in self.clusters.iter().enumerate() {
+        if let Some(pid) = &self.cli.parameter {
+            if let Some(smirks) = map.get(pid) {
+                writeln!(out, "<p>PID: {pid}, SMIRKS: {smirks}</p>")?;
+            }
+        }
+
+        let mut clusters = self.clusters.clone();
+        clusters.sort_by_key(|c| self.mols[c[0]].num_atoms());
+
+        for (i, c) in clusters.iter().enumerate() {
             writeln!(out, "<h1>Cluster {}, {} molecules</h1>", i + 1, c.len())?;
             self.add_svg(&mut out, "Central Molecule", &map, c[0])?;
         }
