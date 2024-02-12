@@ -1,6 +1,5 @@
 import json
 import logging
-import sys
 import time
 from collections import defaultdict
 from typing import Union
@@ -10,7 +9,6 @@ from openff.qcsubmit.results import (
     TorsionDriveResultCollection,
 )
 from openff.toolkit import ForceField
-from tqdm import tqdm
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
@@ -73,15 +71,13 @@ def check_coverage(forcefield, dataset):
 
     results = defaultdict(int)
     # max of 1 per molecule
-    mol_results = defaultdict(int)
-    for record, molecule in tqdm(records_and_molecules, desc="Processing"):
-        print(record.keywords.dihedrals, file=sys.stderr)
+    for record, molecule in records_and_molecules:
+        dihedrals = record.keywords.dihedrals
         all_labels = ff.label_molecules(molecule.to_topology())[0]
         torsions = all_labels["ProperTorsions"]
-        for torsion in torsions.values():
-            results[torsion.id] += 1
-        for tid in {t.id for t in torsions.values()}:
-            mol_results[tid] += 1
+        for key, torsion in torsions.items():
+            if key in dihedrals or key[::-1] in dihedrals:
+                results[torsion.id] += 1
 
     timer.say("finished counting results")
 
@@ -92,7 +88,7 @@ def check_coverage(forcefield, dataset):
 
     for id in tors_ids:
         smirk = h.get_parameter(dict(id=id))[0].smirks
-        print(f"{id:5} {results[id]:5} {mol_results[id]:5}   {smirk}")
+        print(f"{id:5} {results[id]:5} {smirk}")
 
     missing_ids = [k for k in results.keys() if results[k] == 0]
     missing_smirks = [
