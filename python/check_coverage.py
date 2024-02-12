@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import time
 from collections import defaultdict
 from typing import Union
@@ -8,7 +9,7 @@ from openff.qcsubmit.results import (
     OptimizationResultCollection,
     TorsionDriveResultCollection,
 )
-from openff.toolkit import ForceField, Molecule
+from openff.toolkit import ForceField
 from tqdm import tqdm
 
 logging.getLogger("openff").setLevel(logging.ERROR)
@@ -49,31 +50,6 @@ def load_dataset(
             raise TypeError(f"Unknown result collection type: {t}")
 
 
-# helper class for returning a sized iterator
-class Molecules:
-    def __init__(self, dataset):
-        self.data = [v for value in dataset.entries.values() for v in value]
-        self.length = len(self.data)
-
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        for r in self.data:
-            yield Molecule.from_mapped_smiles(
-                r.cmiles, allow_undefined_stereo=True
-            )
-
-
-def to_molecules(dataset) -> Molecules:
-    return Molecules(dataset)
-
-
-# monkey patch for cute calls
-TorsionDriveResultCollection.to_molecules = to_molecules
-OptimizationResultCollection.to_molecules = to_molecules
-
-
 def check_coverage(forcefield, dataset):
     "Check proper torsion parameter coverage in `forcefield` using `dataset`"
 
@@ -91,14 +67,15 @@ def check_coverage(forcefield, dataset):
     h = ff.get_parameter_handler("ProperTorsions")
     tors_ids = [p.id for p in h.parameters]
 
-    records_and_molecules = td_data.to_molecules()
+    records_and_molecules = td_data.to_records()
 
     timer.say("finished to_records")
 
     results = defaultdict(int)
     # max of 1 per molecule
     mol_results = defaultdict(int)
-    for molecule in tqdm(records_and_molecules, desc="Counting results"):
+    for record, molecule in tqdm(records_and_molecules, desc="Processing"):
+        print(record.keywords.dihedrals, file=sys.stderr)
         all_labels = ff.label_molecules(molecule.to_topology())[0]
         torsions = all_labels["ProperTorsions"]
         for torsion in torsions.values():

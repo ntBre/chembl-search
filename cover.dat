@@ -1,9 +1,9 @@
 checking coverage with
 forcefield = input/tm.v2.offxml
 dataset = ../projects/valence-fitting/02_curate-data/datasets/combined-td.json
-finished loading collection after 0.2 s
-finished to_records after 0.2 s
-finished counting results after 34.3 s
+finished loading collection after 0.3 s
+finished to_records after 150.0 s
+finished counting results after 187.8 s
 205 / 225 (91.1%) tors ids covered:
 t1     4599   616   [*:1]-[#6X4:2]-[#6X4:3]-[*:4]
 t2      774   202   [#6X4:1]-[#6X4:2]-[#6X4:3]-[#6X4:4]
@@ -252,4 +252,4 @@ missing ids:
    17  t142k   [*:1]-[#16X3+1:2]-[!#6;X3:3]~[*:4]
    18  t142l   [*:1]-[#16X3+1:2]-[!#6;X4:3]~[*:4]
    19  t143i   [*:1]~[#16X4:2]-[#7X4:3]~[*:4]
-finished after 34.3 s
+finished after 187.8 s
