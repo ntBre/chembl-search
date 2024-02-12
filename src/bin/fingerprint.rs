@@ -139,36 +139,35 @@ fn load_mols(
     let mut ret: Vec<_> = smiles
         .par_iter()
         .flat_map(|smiles| {
-            let tmp = smiles.split('.').map(|smiles| {
-                let mut mol = ROMol::from_smiles(smiles);
-                mol.openff_clean();
-                mol
-            });
+            let tmp = smiles.split('.').map(ROMol::from_smiles);
 
             let mols: Box<dyn Iterator<Item = ROMol>> = if cli.fragment {
                 Box::new(tmp.flat_map(|mol| {
-                    recap_decompose(&mol, None)
-                        .get_leaves()
-                        .into_values()
-                        .map(|mut m| {
-                            for (inp, out) in &dummy_replacements {
-                                m = m
-                                    .replace_substructs(inp, out, true)
-                                    .remove(0);
-                            }
-                            let smiles = m.to_smiles();
-                            m = ROMol::from_smiles(&smiles);
-                            m.openff_clean();
-                            m
-                        })
-                        .collect::<Vec<_>>()
+                    let leaves = recap_decompose(&mol, None).get_leaves();
+                    if leaves.is_empty() {
+                        return vec![mol];
+                    } else {
+                        leaves
+                            .into_values()
+                            .map(|mut m| {
+                                for (inp, out) in &dummy_replacements {
+                                    m = m
+                                        .replace_substructs(inp, out, true)
+                                        .remove(0);
+                                }
+                                let smiles = m.to_smiles();
+                                ROMol::from_smiles(&smiles)
+                            })
+                            .collect::<Vec<_>>()
+                    }
                 }))
             } else {
                 Box::new(tmp)
             };
 
             let mut ret = Vec::new();
-            for mol in mols {
+            for mut mol in mols {
+                mol.openff_clean();
                 fragments.fetch_add(1, Ordering::Relaxed);
                 if mol.num_atoms() > cli.max_atoms {
                     too_big.fetch_add(1, Ordering::Relaxed);
