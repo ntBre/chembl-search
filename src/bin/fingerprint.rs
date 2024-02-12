@@ -233,7 +233,7 @@ struct Cli {
     /// The `Parameter` type for which to extract parameters. Allowed options
     /// are valid arguments to `ForceField.get_parameter_handler`, such as
     /// Bonds, Angles, or ProperTorsions.
-    #[arg(short, long, default_value = "ProperTorsions")]
+    #[arg(long, default_value = "ProperTorsions")]
     parameter_type: String,
 
     /// DBSCAN parameter specifying the acceptable distance between a core point
