@@ -10,7 +10,10 @@ use std::{
 use clap::Parser;
 use log::info;
 use openff_toolkit::ForceField;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    ParallelIterator,
+};
 use rsearch::{
     cluster::{dbscan, Label},
     rdkit::{
@@ -136,54 +139,71 @@ fn load_mols(
         (ROMol::from_smiles("*"), ROMol::from_smiles("[H]")),
     ];
 
-    let mut ret: Vec<_> = smiles
-        .par_iter()
-        .flat_map(|smiles| {
-            let tmp = smiles.split('.').map(ROMol::from_smiles);
+    // this gives each of the "fragments" from the original smiles
+    let mut mols: Vec<_> = smiles
+        .into_iter()
+        .flat_map(|s| s.split('.').map(ROMol::from_smiles))
+        .collect();
 
-            let mols: Box<dyn Iterator<Item = ROMol>> = if cli.fragment {
-                Box::new(tmp.flat_map(|mol| {
-                    let leaves = recap_decompose(&mol, None).get_leaves();
-                    if leaves.is_empty() {
-                        return vec![mol];
-                    } else {
-                        leaves
-                            .into_values()
-                            .map(|mut m| {
-                                for (inp, out) in &dummy_replacements {
-                                    m = m
-                                        .replace_substructs(inp, out, true)
-                                        .remove(0);
-                                }
-                                let smiles = m.to_smiles();
-                                ROMol::from_smiles(&smiles)
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                }))
-            } else {
-                Box::new(tmp)
-            };
+    info!("collected {} initial molecules", mols.len());
 
-            let mut ret = Vec::new();
-            for mut mol in mols {
-                mol.openff_clean();
-                fragments.fetch_add(1, Ordering::Relaxed);
-                if mol.num_atoms() > cli.max_atoms {
-                    too_big.fetch_add(1, Ordering::Relaxed);
-                    continue;
+    if cli.fragment {
+        let tmp: Vec<_> = mols
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, mol)| {
+                info!("started leaves for {i} with smiles {}", mol.to_smiles());
+                let leaves = recap_decompose(&mol, None).get_leaves();
+                info!("finished leaves for {i}");
+                (mol, leaves)
+            })
+            .collect();
+
+        info!("collected leaves");
+
+        mols = tmp
+            .into_par_iter()
+            .flat_map(|(mol, leaves)| {
+                if leaves.is_empty() {
+                    return vec![mol];
+                } else {
+                    leaves
+                        .into_values()
+                        .map(|mut m| {
+                            for (inp, out) in &dummy_replacements {
+                                m = m
+                                    .replace_substructs(inp, out, true)
+                                    .remove(0);
+                            }
+                            let smiles = m.to_smiles();
+                            ROMol::from_smiles(&smiles)
+                        })
+                        .collect::<Vec<_>>()
                 }
-                if find_smarts_matches(&mol, smirks).is_empty() {
-                    no_match.fetch_add(1, Ordering::Relaxed);
-                    continue;
-                }
-                if inchis.contains(&mol.to_inchi_key()) {
-                    overlap.fetch_add(1, Ordering::Relaxed);
-                    continue;
-                }
-                ret.push((mol.to_smiles(), mol))
+            })
+            .collect()
+    }
+
+    info!("finished fragmenting");
+
+    let mut ret: Vec<_> = mols
+        .into_par_iter()
+        .flat_map(|mut mol| {
+            mol.openff_clean();
+            fragments.fetch_add(1, Ordering::Relaxed);
+            if mol.num_atoms() > cli.max_atoms {
+                too_big.fetch_add(1, Ordering::Relaxed);
+                return None;
             }
-            ret
+            if find_smarts_matches(&mol, smirks).is_empty() {
+                no_match.fetch_add(1, Ordering::Relaxed);
+                return None;
+            }
+            if inchis.contains(&mol.to_inchi_key()) {
+                overlap.fetch_add(1, Ordering::Relaxed);
+                return None;
+            }
+            Some((mol.to_smiles(), mol))
         })
         .collect();
 
