@@ -194,6 +194,12 @@ pub mod bitvector {
 
 pub struct ROMol(*mut RDKit_ROMol);
 
+impl ToString for ROMol {
+    fn to_string(&self) -> String {
+        self.to_smiles()
+    }
+}
+
 impl ROMol {
     pub fn from_smiles(smiles: &str) -> Self {
         let s = CString::new(smiles).expect("failed to create CString");
