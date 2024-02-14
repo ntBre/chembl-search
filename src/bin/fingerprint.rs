@@ -122,12 +122,6 @@ fn load_mols(
     smirks: &str,
     inchis: HashSet<String>,
 ) -> Vec<ROMol> {
-    let too_big = AtomicUsize::new(0);
-    let no_match = AtomicUsize::new(0);
-    let overlap = AtomicUsize::new(0);
-
-    let fragments = AtomicUsize::new(0);
-
     // from Lily's example
     let dummy_replacements = [
         // Handle the special case of -S(=O)(=O)[*] -> -S(=O)(-[O-])
@@ -152,6 +146,8 @@ fn load_mols(
     /// 103 atoms
     const MAX_FRAG_ATOMS: usize = 100;
 
+    // apply the replacements above to a molecule and then round-trip through
+    // SMILES to prevent radical formation issue
     let replace_fn = |mut m: ROMol| {
         for (inp, out) in &dummy_replacements {
             m = m.replace_substructs(inp, out, true).remove(0);
@@ -176,9 +172,14 @@ fn load_mols(
                 leaves.into_values().map(replace_fn).collect::<Vec<_>>()
             })
             .collect();
+
+        info!("finished fragmenting");
     }
 
-    info!("finished fragmenting");
+    let too_big = AtomicUsize::new(0);
+    let no_match = AtomicUsize::new(0);
+    let overlap = AtomicUsize::new(0);
+    let fragments = AtomicUsize::new(0);
 
     let mut ret: Vec<_> = mols
         .into_par_iter()
