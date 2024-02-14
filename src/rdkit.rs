@@ -341,7 +341,7 @@ impl ROMol {
             assert!(!res.is_null());
             let mut ret = Vec::with_capacity(len);
             for i in 0..len {
-                ret.push(ROMol(*res.offset(i as isize)));
+                ret.push(ROMol(*res.add(i)));
             }
             ret
         }
