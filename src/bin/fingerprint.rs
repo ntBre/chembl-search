@@ -118,7 +118,8 @@ fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
 
 fn load_mols(
     smiles: Vec<&str>,
-    cli: &Cli,
+    max_atoms: usize,
+    fragment: bool,
     smirks: &str,
     inchis: HashSet<String>,
 ) -> Vec<ROMol> {
@@ -147,14 +148,22 @@ fn load_mols(
 
     info!("collected {} initial molecules", mols.len());
 
-    if cli.fragment {
+    /// the maximum molecule size to try fragmenting. 100 seems like a good
+    /// limit, but maybe only because we're filtering a particular molecule with
+    /// 103 atoms
+    const MAX_FRAG_ATOMS: usize = 100;
+
+    if fragment {
         let tmp: Vec<_> = mols
             .into_par_iter()
-            .enumerate()
-            .map(|(i, mol)| {
-                info!("started leaves for {i} with smiles {}", mol.to_smiles());
-                let leaves = recap_decompose(&mol, None).get_leaves();
-                info!("finished leaves for {i}");
+            .map(|mol| {
+                let natoms = mol.num_atoms();
+                let leaves = if natoms < MAX_FRAG_ATOMS {
+                    recap_decompose(&mol, None).get_leaves()
+                } else {
+                    debug!("filtered a molecule with {natoms} atoms");
+                    HashMap::new()
+                };
                 (mol, leaves)
             })
             .collect();
@@ -191,7 +200,7 @@ fn load_mols(
         .flat_map(|mut mol| {
             mol.openff_clean();
             fragments.fetch_add(1, Ordering::Relaxed);
-            if mol.num_atoms() > cli.max_atoms {
+            if mol.num_atoms() > max_atoms {
                 too_big.fetch_add(1, Ordering::Relaxed);
                 return None;
             }
@@ -323,7 +332,13 @@ fn main() -> io::Result<()> {
         .map(|s| s.to_owned())
         .collect();
 
-    let mols = load_mols(smiles, &cli, &map[&parameter], existing_inchis);
+    let mols = load_mols(
+        smiles,
+        cli.max_atoms,
+        cli.fragment,
+        &map[&parameter],
+        existing_inchis,
+    );
 
     let fps: Vec<_> = make_fps(&mols, cli.radius);
 
