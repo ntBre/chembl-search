@@ -173,7 +173,7 @@ fn load_mols(
             .into_par_iter()
             .flat_map(|(mol, leaves)| {
                 if leaves.is_empty() {
-                    return vec![mol];
+                    vec![mol]
                 } else {
                     leaves
                         .into_values()
