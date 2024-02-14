@@ -8,6 +8,8 @@ use std::{
     rc::Rc,
 };
 
+use log::debug;
+
 use super::ROMol;
 
 const REACTION_DEFS: [&str; 12] = [
@@ -113,6 +115,8 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
     active_pool.insert(msmi.clone(), res.clone());
     all_nodes.insert(msmi, res.clone());
 
+    let mut seen = HashSet::new();
+
     while !active_pool.is_empty() {
         // this used to be while let Some((nsmi, node)) =
         // active_pool.next(), but that causes a disaster. instead, we need
@@ -212,8 +216,13 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
                                     node.borrow_mut()
                                         .children
                                         .insert(psmi.clone(), pnode.clone());
-                                    active_pool.insert(psmi, pnode.clone());
-                                    v.insert(pnode);
+                                    if !seen.contains(&psmi) {
+                                        seen.insert(psmi.clone());
+                                        active_pool.insert(psmi, pnode.clone());
+                                        v.insert(pnode);
+                                    } else {
+                                        debug!("skipping already seen {psmi}");
+                                    }
                                 }
                             }
                         }
