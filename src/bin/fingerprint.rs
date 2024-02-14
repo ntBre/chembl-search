@@ -8,11 +8,10 @@ use std::{
 };
 
 use clap::Parser;
-use log::info;
+use log::{debug, info};
 use openff_toolkit::ForceField;
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    ParallelIterator,
+    IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
 use rsearch::{
     cluster::{dbscan, Label},
