@@ -157,6 +157,7 @@ fn load_mols(
     };
 
     if fragment {
+        info!("starting fragmenting");
         mols = mols
             .into_par_iter()
             .flat_map(|mol| {
@@ -326,6 +327,8 @@ fn main() -> io::Result<()> {
         existing_inchis,
     );
 
+    info!("making fingerprints");
+
     let fps: Vec<_> = make_fps(&mols, cli.radius);
 
     let nfps = fps.len();
@@ -336,6 +339,8 @@ fn main() -> io::Result<()> {
             1.0 - tanimoto(&fps[i], &fps[j])
         }
     };
+
+    info!("running DBSCAN");
 
     let labels = dbscan(nfps, nfps, distance_fn, cli.epsilon, cli.min_pts);
 
@@ -374,6 +379,8 @@ fn main() -> io::Result<()> {
     // bench: 154
 
     let output = Path::new(&cli.smiles_file).with_extension("html");
+
+    info!("generating report");
 
     Report {
         args: std::env::args().collect::<Vec<_>>(),
