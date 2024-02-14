@@ -21,7 +21,7 @@ test:
 	cargo test -- $(FLAGS)
 
 clippy:
-	cargo clippy --workspace --tests
+	cargo clippy --workspace --tests $(ARGS)
 
 run:
 	cargo run --bin rsearch --release -- \
