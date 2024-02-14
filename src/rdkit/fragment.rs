@@ -2,7 +2,7 @@
 
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     ffi::CString,
     ptr::null_mut,
     rc::Rc,
@@ -187,29 +187,34 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
                     if seq_ok {
                         for (_nats, prod) in prod_seq {
                             let psmi = prod.psmi;
-                            if !all_nodes.contains_key(&psmi) {
-                                let mut pnode =
-                                    RecapHierarchyNode::new(Rc::new(prod.mol));
-                                pnode.smiles = Some(psmi.clone());
-                                // cycle, horrifying
-                                pnode
-                                    .parents
-                                    .insert(nsmi.clone(), node.clone());
-                                let pnode = Rc::new(RefCell::new(pnode));
-                                node.borrow_mut()
-                                    .children
-                                    .insert(psmi.clone(), pnode.clone());
-                                active_pool.insert(psmi.clone(), pnode.clone());
-                                all_nodes.insert(psmi, pnode);
-                            } else {
-                                let pnode = &all_nodes[&psmi];
-                                pnode
-                                    .borrow_mut()
-                                    .parents
-                                    .insert(nsmi.clone(), node.clone());
-                                node.borrow_mut()
-                                    .children
-                                    .insert(psmi, pnode.clone());
+                            let entry = all_nodes.entry(psmi.clone());
+                            match entry {
+                                Entry::Occupied(occ) => {
+                                    let pnode = occ.get();
+                                    pnode
+                                        .borrow_mut()
+                                        .parents
+                                        .insert(nsmi.clone(), node.clone());
+                                    node.borrow_mut()
+                                        .children
+                                        .insert(psmi, pnode.clone());
+                                }
+                                Entry::Vacant(v) => {
+                                    let mut pnode = RecapHierarchyNode::new(
+                                        Rc::new(prod.mol),
+                                    );
+                                    pnode.smiles = Some(psmi.clone());
+                                    // cycle, horrifying
+                                    pnode
+                                        .parents
+                                        .insert(nsmi.clone(), node.clone());
+                                    let pnode = Rc::new(RefCell::new(pnode));
+                                    node.borrow_mut()
+                                        .children
+                                        .insert(psmi.clone(), pnode.clone());
+                                    active_pool.insert(psmi, pnode.clone());
+                                    v.insert(pnode);
+                                }
                             }
                         }
                     }
