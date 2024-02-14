@@ -1,15 +1,16 @@
 export RUST_LOG=debug
 bin=target/release/fingerprint
 
-#param=t138a
 eps=0.7
-pts=2
+pts=10
 fragment=-x
 
-# params=( t118h t142j t116i t89 t142k t101 t141 t88 t18a t116j t72h t115h t165
-# t141b t83h t141c )
-
-params=( t141 )
+params=( t142j t142k t101 t141 t88 t18a t116j t72h t115h
+# t165
+# t141b
+# t83h
+# t141c
+)
 
 set -x
 
