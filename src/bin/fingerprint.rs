@@ -118,21 +118,10 @@ fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
 fn load_mols(
     smiles: Vec<&str>,
     max_atoms: usize,
-    fragment: bool,
+    do_fragment: bool,
     smirks: &str,
     inchis: HashSet<String>,
 ) -> Vec<ROMol> {
-    // from Lily's example
-    let dummy_replacements = [
-        // Handle the special case of -S(=O)(=O)[*] -> -S(=O)(-[O-])
-        (
-            ROMol::from_smiles("S(=O)(=O)*"),
-            ROMol::from_smiles("S(=O)([O-])"),
-        ),
-        // Handle the general case
-        (ROMol::from_smiles("*"), ROMol::from_smiles("[H]")),
-    ];
-
     // this gives each of the "fragments" from the original smiles
     let mut mols: Vec<_> = smiles
         .into_iter()
@@ -141,40 +130,8 @@ fn load_mols(
 
     info!("collected {} initial molecules", mols.len());
 
-    /// the maximum molecule size to try fragmenting. 100 seems like a good
-    /// limit, but maybe only because we're filtering a particular molecule with
-    /// 103 atoms
-    const MAX_FRAG_ATOMS: usize = 100;
-
-    // apply the replacements above to a molecule and then round-trip through
-    // SMILES to prevent radical formation issue
-    let replace_fn = |mut m: ROMol| {
-        for (inp, out) in &dummy_replacements {
-            m = m.replace_substructs(inp, out, true).remove(0);
-        }
-        let smiles = m.to_smiles();
-        ROMol::from_smiles(&smiles)
-    };
-
-    if fragment {
-        info!("starting fragmenting");
-        mols = mols
-            .into_par_iter()
-            .flat_map(|mol| {
-                let natoms = mol.num_atoms();
-                if natoms > MAX_FRAG_ATOMS {
-                    debug!("filtered a molecule with {natoms} atoms");
-                    return vec![mol];
-                }
-                let leaves = recap_decompose(&mol, None).get_leaves();
-                if leaves.is_empty() {
-                    return vec![mol];
-                }
-                leaves.into_values().map(replace_fn).collect::<Vec<_>>()
-            })
-            .collect();
-
-        info!("finished fragmenting");
+    if do_fragment {
+        mols = fragment(mols);
     }
 
     let too_big = AtomicUsize::new(0);
@@ -222,6 +179,56 @@ fn load_mols(
     );
 
     let (_, ret): (Vec<String>, _) = ret.into_iter().unzip();
+
+    ret
+}
+
+fn fragment(mols: Vec<ROMol>) -> Vec<ROMol> {
+    info!("starting fragment");
+
+    // from Lily's example
+    let dummy_replacements = [
+        // Handle the special case of -S(=O)(=O)[*] -> -S(=O)(-[O-])
+        (
+            ROMol::from_smiles("S(=O)(=O)*"),
+            ROMol::from_smiles("S(=O)([O-])"),
+        ),
+        // Handle the general case
+        (ROMol::from_smiles("*"), ROMol::from_smiles("[H]")),
+    ];
+
+    /// the maximum molecule size to try fragmenting. 100 seems like a good
+    /// limit, but maybe only because we're filtering a particular molecule with
+    /// 103 atoms
+    const MAX_FRAG_ATOMS: usize = 100;
+
+    // apply the replacements above to a molecule and then round-trip through
+    // SMILES to prevent radical formation issue
+    let replace_fn = |mut m: ROMol| {
+        for (inp, out) in &dummy_replacements {
+            m = m.replace_substructs(inp, out, true).remove(0);
+        }
+        let smiles = m.to_smiles();
+        ROMol::from_smiles(&smiles)
+    };
+
+    let ret = mols
+        .into_par_iter()
+        .flat_map(|mol| {
+            let natoms = mol.num_atoms();
+            if natoms > MAX_FRAG_ATOMS {
+                debug!("filtered a molecule with {natoms} atoms");
+                return vec![mol];
+            }
+            let leaves = recap_decompose(&mol, None).get_leaves();
+            if leaves.is_empty() {
+                return vec![mol];
+            }
+            leaves.into_values().map(replace_fn).collect::<Vec<_>>()
+        })
+        .collect();
+
+    info!("finished fragment");
 
     ret
 }
