@@ -152,44 +152,30 @@ fn load_mols(
     /// 103 atoms
     const MAX_FRAG_ATOMS: usize = 100;
 
+    let replace_fn = |mut m: ROMol| {
+        for (inp, out) in &dummy_replacements {
+            m = m.replace_substructs(inp, out, true).remove(0);
+        }
+        let smiles = m.to_smiles();
+        ROMol::from_smiles(&smiles)
+    };
+
     if fragment {
-        let tmp: Vec<_> = mols
+        mols = mols
             .into_par_iter()
-            .map(|mol| {
+            .flat_map(|mol| {
                 let natoms = mol.num_atoms();
-                let leaves = if natoms < MAX_FRAG_ATOMS {
-                    recap_decompose(&mol, None).get_leaves()
-                } else {
+                if natoms > MAX_FRAG_ATOMS {
                     debug!("filtered a molecule with {natoms} atoms");
-                    HashMap::new()
-                };
-                (mol, leaves)
+                    return vec![mol];
+                }
+                let leaves = recap_decompose(&mol, None).get_leaves();
+                if leaves.is_empty() {
+                    return vec![mol];
+                }
+                leaves.into_values().map(replace_fn).collect::<Vec<_>>()
             })
             .collect();
-
-        info!("collected leaves");
-
-        mols = tmp
-            .into_par_iter()
-            .flat_map(|(mol, leaves)| {
-                if leaves.is_empty() {
-                    vec![mol]
-                } else {
-                    leaves
-                        .into_values()
-                        .map(|mut m| {
-                            for (inp, out) in &dummy_replacements {
-                                m = m
-                                    .replace_substructs(inp, out, true)
-                                    .remove(0);
-                            }
-                            let smiles = m.to_smiles();
-                            ROMol::from_smiles(&smiles)
-                        })
-                        .collect::<Vec<_>>()
-                }
-            })
-            .collect()
     }
 
     info!("finished fragmenting");
