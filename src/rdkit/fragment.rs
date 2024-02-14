@@ -236,6 +236,7 @@ impl ChemicalReaction {
             let products = rdkit_sys::RDKit_RunReactants(
                 self.0,
                 mol.0,
+                1000,
                 &mut len,
                 &mut inner_lens,
                 &mut inner_lens_len,
