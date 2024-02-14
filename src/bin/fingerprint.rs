@@ -220,7 +220,11 @@ fn fragment(mols: Vec<ROMol>) -> Vec<ROMol> {
                 debug!("filtered a molecule with {natoms} atoms");
                 return vec![mol];
             }
-            let leaves = recap_decompose(&mol, None).get_leaves();
+            // we're looking for torsions, so the min_fragment_size is 4. this
+            // probably isn't quite true because these might only be heavy atoms
+            // at this point
+            let leaves =
+                recap_decompose(&mol, None, Some(4), None).get_leaves();
             if leaves.is_empty() {
                 return vec![mol];
             }

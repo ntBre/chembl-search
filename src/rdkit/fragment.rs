@@ -83,7 +83,12 @@ impl RecapResult {
 /// recap tree. As shown in the example above, these will contain `*`s where the
 /// fragments have been separated, so you may need to replace these with
 /// hydrogens before the fragments are usable.
-pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
+pub fn recap_decompose(
+    mol: &ROMol,
+    all_nodes: Option<bool>,
+    min_fragment_size: Option<usize>,
+    only_use_reactions: Option<HashSet<usize>>,
+) -> RecapResult {
     // TODO make this lazy static
     let reactions: Vec<_> = REACTION_DEFS
         .iter()
@@ -101,8 +106,7 @@ pub fn recap_decompose(mol: &ROMol, all_nodes: Option<bool>) -> RecapResult {
     };
 
     // TODO default arg
-    let min_fragment_size = 0;
-    let only_use_reactions: Option<HashSet<usize>> = None;
+    let min_fragment_size = min_fragment_size.unwrap_or(0);
 
     if all_nodes.contains_key(&msmi) {
         return RecapResult(all_nodes.remove(&msmi).unwrap());
@@ -321,7 +325,7 @@ C(SSC(/C([H])=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])(C([H])([H])C([H])\
 ([H])[H])C([H])([H])C([H])([H])[H])(C([H])([H])C([H])([H])[H])C([H])([H])C([H])\
 ([H])[H]";
         let mol = ROMol::from_smiles(smiles);
-        let fragments = recap_decompose(&mol, None);
+        let fragments = recap_decompose(&mol, None, None, None);
         let got = fragments.get_leaves();
         let want = ["*OCC", r#"*C(=O)C/N=C\C(CC)(CC)SSC(/C=N/CC(*)=O)(CC)CC"#];
         assert_eq!(got.len(), want.len());
@@ -344,7 +348,7 @@ C3([H])[H])C(=O)N([H])[C@]([H])(C(=O)N([H])[C@]([H])(C(=O)N([H])[H])C([H])([H])\
 c3c([H])c([H])c4c([H])c([H])c([H])c([H])c4c3[H])C([H])([H])SSC2([H])[H])N([H])\
 [H])c2c([H])c([H])c([H])c([H])c2N1[H]";
         let mol = ROMol::from_smiles(smiles);
-        let fragments = recap_decompose(&mol, None);
+        let fragments = recap_decompose(&mol, None, None, None);
         let got = fragments.get_leaves();
         assert_eq!(got.len(), 3);
     }
