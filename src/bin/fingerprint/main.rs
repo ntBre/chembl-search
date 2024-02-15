@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use config::Dbscan;
+use config::Parameter;
 use log::{debug, info, trace};
 use openff_toolkit::ForceField;
 use rayon::iter::{
@@ -240,25 +240,21 @@ mod config;
 
 fn single(
     ff: &str,
-    smiles_file: &str,
-    parameter: &str,
-    ptype: &str,
     max_atoms: usize,
-    do_fragment: bool,
     radius: u32,
-    dbscan_conf: Dbscan,
+    param: Parameter,
 ) -> Result<(), io::Error> {
-    info!("starting {parameter}");
+    info!("starting {}", param.id);
 
-    let s = read_to_string(smiles_file)
-        .unwrap_or_else(|e| panic!("failed to read {} for {e}", smiles_file));
+    let s = read_to_string(&param.smiles)
+        .unwrap_or_else(|e| panic!("failed to read {} for {e}", param.smiles));
     let smiles: Vec<_> = s.lines().collect();
 
     info!("{} initial smiles", smiles.len());
 
     let map: HashMap<Pid, Smirks> = ForceField::load(ff)
         .unwrap()
-        .get_parameter_handler(ptype)
+        .get_parameter_handler(&param.typ)
         .unwrap()
         .parameters()
         .into_iter()
@@ -267,7 +263,7 @@ fn single(
 
     let mol_map: Vec<(Pid, ROMol)> = ForceField::load(ff)
         .unwrap()
-        .get_parameter_handler(ptype)
+        .get_parameter_handler(&param.typ)
         .unwrap()
         .parameters()
         .into_iter()
@@ -283,8 +279,8 @@ fn single(
     let mols = load_mols(
         smiles,
         max_atoms,
-        do_fragment,
-        parameter,
+        param.fragment,
+        &param.id,
         existing_inchis,
         &mol_map,
     );
@@ -307,8 +303,8 @@ fn single(
         nfps,
         nfps,
         distance_fn,
-        dbscan_conf.epsilon,
-        dbscan_conf.min_pts,
+        param.dbscan.epsilon,
+        param.dbscan.min_pts,
     );
 
     let max = match labels
@@ -338,7 +334,7 @@ fn single(
 
     info!("generating report");
 
-    let output = Path::new(smiles_file).with_extension("html");
+    let output = Path::new(&param.smiles).with_extension("html");
     Report {
         args: std::env::args().collect::<Vec<_>>(),
         max,
@@ -346,7 +342,7 @@ fn single(
         noise,
         clusters,
         mols,
-        parameter,
+        parameter: &param.id,
         map,
         mol_map,
     }
@@ -371,16 +367,9 @@ fn main() -> io::Result<()> {
         .build_global()
         .unwrap();
 
-    single(
-        &cli.forcefield,
-        &cli.smiles_file,
-        &cli.parameter,
-        &cli.parameter_type,
-        cli.max_atoms,
-        cli.fragment,
-        cli.radius,
-        cli.dbscan,
-    )?;
+    for param in cli.parameters {
+        single(&cli.forcefield, cli.max_atoms, cli.radius, param)?;
+    }
 
     Ok(())
 }

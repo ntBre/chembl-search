@@ -7,61 +7,31 @@ use serde::Deserialize;
 pub(crate) struct Dbscan {
     /// The maximum acceptable distance between a core point of a cluster and
     /// one of its neighbors.
+    #[serde(default = "Dbscan::default_eps")]
     pub(crate) epsilon: f64,
 
     /// The minimum number of points required to form a dense region
+    #[serde(default = "Dbscan::default_min_pts")]
     pub(crate) min_pts: usize,
 }
 
-impl Default for Dbscan {
-    /// The default parameters are taken from the
-    /// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
-    /// qca-dataset-submission repo commit 79ee3a3
-    fn default() -> Self {
-        Self {
-            epsilon: 0.5,
-            min_pts: 1,
-        }
+impl Dbscan {
+    fn default_eps() -> f64 {
+        0.5
+    }
+
+    fn default_min_pts() -> usize {
+        1
     }
 }
 
-// impl Default for Config {
-//     fn default() -> Self {
-//         Self {
-//             smiles_file: String::new(),
-//             max_atoms: 80,
-//             forcefield: "input/tm.v2.offxml".to_owned(),
-//             parameter: None,
-//             parameter_type: "ProperTorsions".to_owned(),
-//             dbscan: DBSCAN::default(),
-//             radius: 4,
-//             threads: 0,
-//             fragment: false,
-//         }
-//     }
-// }
-
 #[derive(Deserialize)]
 pub(crate) struct Config {
-    /// The file of SMILES strings to read as input, one SMILES per line.
-    pub(crate) smiles_file: String,
-
     /// The maximum number of atoms to consider
     pub(crate) max_atoms: usize,
 
     /// The force field to use for parameter labeling.
     pub(crate) forcefield: String,
-
-    /// The parameter to use when highlighting atoms in the molecules.
-    pub(crate) parameter: String,
-
-    /// The `Parameter` type for which to extract parameters. Allowed options
-    /// are valid arguments to `ForceField.get_parameter_handler`, such as
-    /// Bonds, Angles, or ProperTorsions.
-    pub(crate) parameter_type: String,
-
-    /// [DBSCAN] parameters
-    pub(crate) dbscan: Dbscan,
 
     /// Morgan fingerprinting radius
     pub(crate) radius: u32,
@@ -70,9 +40,48 @@ pub(crate) struct Config {
     /// detected by rayon.
     pub(crate) threads: usize,
 
+    #[serde(rename = "parameter")]
+    pub(crate) parameters: Vec<Parameter>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct Parameter {
+    /// The file of SMILES strings to read as input, one SMILES per line.
+    pub(crate) smiles: String,
+
+    /// The parameter identifier to use when highlighting atoms in the
+    /// molecules.
+    pub(crate) id: String,
+
+    /// The `Parameter` type for which to extract parameters. Allowed options
+    /// are valid arguments to `ForceField.get_parameter_handler`, such as
+    /// Bonds, Angles, or ProperTorsions.
+    #[serde(rename = "type", default = "default_ptype")]
+    pub(crate) typ: String,
+
+    /// [DBSCAN] parameters
+    #[serde(default = "default_dbscan")]
+    pub(crate) dbscan: Dbscan,
+
     /// Whether or not to fragment the molecules before the fingerprinting
     /// analysis.
+    #[serde(default = "default_fragment")]
     pub(crate) fragment: bool,
+}
+
+fn default_fragment() -> bool {
+    true
+}
+
+fn default_ptype() -> String {
+    "ProperTorsions".to_owned()
+}
+
+fn default_dbscan() -> Dbscan {
+    Dbscan {
+        epsilon: 0.5,
+        min_pts: 1,
+    }
 }
 
 impl Config {
