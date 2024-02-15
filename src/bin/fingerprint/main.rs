@@ -356,10 +356,13 @@ fn main() -> io::Result<()> {
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let mol_map: Vec<(Pid, ROMol)> = map
-        .clone()
+    let mol_map: Vec<(Pid, ROMol)> = ForceField::load(&cli.forcefield)
+        .unwrap()
+        .get_parameter_handler(&cli.parameter_type)
+        .unwrap()
+        .parameters()
         .into_iter()
-        .map(|(pid, smarts)| (pid, ROMol::from_smarts(&smarts)))
+        .map(|p| (p.id(), ROMol::from_smarts(&p.smirks())))
         .collect();
 
     let existing_inchis: HashSet<_> = read_to_string("data/inchis.dat")
