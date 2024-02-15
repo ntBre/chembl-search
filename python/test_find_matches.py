@@ -2,14 +2,22 @@ import logging
 import sys
 
 from openff.toolkit import ForceField, Molecule, Topology
+from openff.toolkit.topology.topology import ValenceDict
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
 # just to allay fears about toolkits
 
-# from openff.toolkit.utils import GLOBAL_TOOLKIT_REGISTRY, OpenEyeToolkitWrapper
-# GLOBAL_TOOLKIT_REGISTRY.deregister_toolkit(OpenEyeToolkitWrapper)
+use_rdkit = False
+
+if use_rdkit:
+    from openff.toolkit.utils import (
+        GLOBAL_TOOLKIT_REGISTRY,
+        OpenEyeToolkitWrapper,
+    )
+
+    GLOBAL_TOOLKIT_REGISTRY.deregister_toolkit(OpenEyeToolkitWrapper)
 
 
 def label_molecules(self, topology):
@@ -20,7 +28,7 @@ def label_molecules(self, topology):
     parameter_handler = self.get_parameter_handler("ProperTorsions")
     matches = parameter_handler.find_matches(top_mol)
 
-    parameter_matches = matches.__class__()
+    parameter_matches = ValenceDict()
 
     for match in matches:
         parameter_matches[match] = matches[match].parameter_type
