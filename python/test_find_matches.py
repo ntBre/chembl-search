@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from openff.toolkit import ForceField, Molecule
+from openff.toolkit import ForceField, Molecule, Topology
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
@@ -13,39 +13,19 @@ logging.getLogger("openff").setLevel(logging.ERROR)
 
 
 def label_molecules(self, topology):
-    from openff.toolkit import Topology
-    from openff.toolkit.typing.engines.smirnoff.parameters import (
-        VirtualSiteHandler,
-    )
-
-    # stupid generators................
-    mols = [m for m in topology.molecules]
+    mols = [m for m in topology.molecules]  # stupid generators...
     assert len(mols) == 1
 
     top_mol = Topology.from_molecules(mols[0])
-    current_molecule_labels = dict()
-    for tag, parameter_handler in self._parameter_handlers.items():
-        param_is_list = False
+    parameter_handler = self.get_parameter_handler("ProperTorsions")
+    matches = parameter_handler.find_matches(top_mol)
 
-        if type(parameter_handler) is VirtualSiteHandler:
-            param_is_list = True
+    parameter_matches = matches.__class__()
 
-        matches = parameter_handler.find_matches(top_mol)
+    for match in matches:
+        parameter_matches[match] = matches[match].parameter_type
 
-        parameter_matches = matches.__class__()
-
-        if param_is_list:
-            for match in matches:
-                parameter_matches[match] = [
-                    m.parameter_type for m in matches[match]
-                ]
-        else:
-            for match in matches:
-                parameter_matches[match] = matches[match].parameter_type
-
-        current_molecule_labels[tag] = parameter_matches
-
-    return current_molecule_labels
+    return parameter_matches
 
 
 ForceField.label_molecules = label_molecules
@@ -67,18 +47,18 @@ def draw_rdkit(rdmol, matches=None):
 
 
 def all_matches(ff, mol):
-    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())
     return {p.id for p in labels.values()}
 
 
 def debug_matches(ff, mol):
-    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())
     for env, p in labels.items():
         print(env, p.id)
 
 
 def get_matches(ff, mol, param):
-    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())
     ret = []
     for env, p in labels.items():
         if p.id == param:
