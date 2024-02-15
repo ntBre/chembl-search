@@ -4,6 +4,7 @@ use std::{
     sync::Mutex,
 };
 
+use log::trace;
 use matrix::Matrix;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rdkit::{
@@ -67,6 +68,7 @@ pub fn find_matches_full(
     for (id, smirks) in params {
         let env_matches = find_smarts_matches_mol(mol, smirks);
         for mat in env_matches {
+            trace!("{mat:?} => {id}");
             matches.insert(mat, id.clone());
         }
     }

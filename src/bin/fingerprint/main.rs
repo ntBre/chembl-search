@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use log::{debug, info};
+use log::{debug, info, trace};
 use openff_toolkit::ForceField;
 use rayon::iter::{
     IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
@@ -20,7 +20,6 @@ use rsearch::{
         ROMol,
     },
 };
-use serde::Deserialize;
 
 struct Report<'a> {
     args: Vec<String>,
@@ -29,7 +28,7 @@ struct Report<'a> {
     noise: usize,
     clusters: Vec<Vec<usize>>,
     mols: Vec<ROMol>,
-    cli: &'a Config,
+    cli: &'a config::Config,
     map: HashMap<Pid, Smirks>,
     mol_map: Vec<(Pid, ROMol)>,
 }
@@ -147,6 +146,11 @@ fn load_mols(
             }
             let matches = find_matches_full(mol_map, &mol);
             if !matches.iter().any(|(_, p)| p.as_str() == pid) {
+                trace!(
+                    "pid {pid} not found in {:?} for {}",
+                    matches.into_values().collect::<HashSet<String>>(),
+                    mol.to_smiles(),
+                );
                 no_match.fetch_add(1, Ordering::Relaxed);
                 return None;
             }
@@ -235,83 +239,7 @@ fn fragment(mols: Vec<ROMol>) -> Vec<ROMol> {
     ret
 }
 
-#[derive(Deserialize)]
-struct DBSCAN {
-    /// The maximum acceptable distance between a core point of a cluster and
-    /// one of its neighbors.
-    epsilon: f64,
-
-    /// The minimum number of points required to form a dense region
-    min_pts: usize,
-}
-
-impl Default for DBSCAN {
-    /// The default parameters are taken from the
-    /// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
-    /// qca-dataset-submission repo commit 79ee3a3
-    fn default() -> Self {
-        Self {
-            epsilon: 0.5,
-            min_pts: 1,
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            smiles_file: String::new(),
-            max_atoms: 80,
-            forcefield: "input/tm.v2.offxml".to_owned(),
-            parameter: None,
-            parameter_type: "ProperTorsions".to_owned(),
-            dbscan: DBSCAN::default(),
-            radius: 4,
-            threads: 0,
-            fragment: false,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct Config {
-    /// The file of SMILES strings to read as input, one SMILES per line.
-    smiles_file: String,
-
-    /// The maximum number of atoms to consider
-    max_atoms: usize,
-
-    /// The force field to use for parameter labeling.
-    forcefield: String,
-
-    /// The parameter to use when highlighting atoms in the molecules.
-    parameter: Option<String>,
-
-    /// The `Parameter` type for which to extract parameters. Allowed options
-    /// are valid arguments to `ForceField.get_parameter_handler`, such as
-    /// Bonds, Angles, or ProperTorsions.
-    parameter_type: String,
-
-    /// [DBSCAN] parameters
-    dbscan: DBSCAN,
-
-    /// Morgan fingerprinting radius
-    radius: u32,
-
-    /// The number of threads to use. Defaults to the number of logical CPUs as
-    /// detected by rayon.
-    threads: usize,
-
-    /// Whether or not to fragment the molecules before the fingerprinting
-    /// analysis.
-    fragment: bool,
-}
-
-impl Config {
-    fn load(path: impl AsRef<Path>) -> Self {
-        toml::from_str(&read_to_string(path).unwrap()).unwrap()
-    }
-}
+mod config;
 
 fn main() -> io::Result<()> {
     env_logger::init();
@@ -323,7 +251,7 @@ fn main() -> io::Result<()> {
         std::process::exit(1);
     }
 
-    let cli = Config::load(&args[1]);
+    let cli = config::Config::load(&args[1]);
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(cli.threads)
