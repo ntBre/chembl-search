@@ -97,6 +97,8 @@ pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::read_to_string;
+
     use openff_toolkit::ForceField;
 
     use crate::{
@@ -147,5 +149,36 @@ mod tests {
         let smarts = ROMol::from_smarts("[*:1]-[#16X2,#16X3+1:2]-[#6:3]~[*:4]");
         let got = find_smarts_matches_mol(&mol, &smarts);
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn test_find_matches() {
+        // test cases are generated with test_find_matches.py on a given SMILES
+        // with the tm.v2.offxml forcefield
+        let data = read_to_string("testfiles/find_matches.dat").unwrap();
+        let tests = data.lines().map(|s| {
+            let mut sp = s.split_ascii_whitespace();
+            let smiles = sp.next().unwrap();
+            let v: Vec<_> = sp.collect();
+            (smiles, v)
+        });
+        let ff = "input/tm.v2.offxml";
+        let params: Vec<(String, ROMol)> = ForceField::load(ff)
+            .unwrap()
+            .get_parameter_handler("ProperTorsions")
+            .unwrap()
+            .parameters()
+            .into_iter()
+            .map(|p| (p.id(), ROMol::from_smarts(&p.smirks())))
+            .collect();
+
+        for (i, (s, want)) in tests.enumerate() {
+            let mut mol = ROMol::from_smiles(s);
+            mol.openff_clean();
+            let mut got: Vec<_> =
+                find_matches(&params, &mol).into_iter().collect();
+            got.sort();
+            assert_eq!(got, want, "case {i} failed with smiles =\n{s}");
+        }
     }
 }
