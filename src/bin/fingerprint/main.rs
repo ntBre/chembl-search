@@ -7,7 +7,6 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use clap::Parser;
 use log::{debug, info};
 use openff_toolkit::ForceField;
 use rayon::iter::{
@@ -21,6 +20,7 @@ use rsearch::{
         ROMol,
     },
 };
+use serde::Deserialize;
 
 struct Report<'a> {
     args: Vec<String>,
@@ -29,7 +29,7 @@ struct Report<'a> {
     noise: usize,
     clusters: Vec<Vec<usize>>,
     mols: Vec<ROMol>,
-    cli: &'a Cli,
+    cli: &'a Config,
     map: HashMap<Pid, Smirks>,
     mol_map: Vec<(Pid, ROMol)>,
 }
@@ -235,61 +235,95 @@ fn fragment(mols: Vec<ROMol>) -> Vec<ROMol> {
     ret
 }
 
-/// The default DBSCAN parameters are taken from the
-/// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
-/// qca-dataset-submission repo commit 79ee3a3
-#[derive(Parser)]
-struct Cli {
+#[derive(Deserialize)]
+struct DBSCAN {
+    /// The maximum acceptable distance between a core point of a cluster and
+    /// one of its neighbors.
+    epsilon: f64,
+
+    /// The minimum number of points required to form a dense region
+    min_pts: usize,
+}
+
+impl Default for DBSCAN {
+    /// The default parameters are taken from the
+    /// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
+    /// qca-dataset-submission repo commit 79ee3a3
+    fn default() -> Self {
+        Self {
+            epsilon: 0.5,
+            min_pts: 1,
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            smiles_file: String::new(),
+            max_atoms: 80,
+            forcefield: "input/tm.v2.offxml".to_owned(),
+            parameter: None,
+            parameter_type: "ProperTorsions".to_owned(),
+            dbscan: DBSCAN::default(),
+            radius: 4,
+            threads: 0,
+            fragment: false,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct Config {
     /// The file of SMILES strings to read as input, one SMILES per line.
     smiles_file: String,
 
     /// The maximum number of atoms to consider
-    #[arg(long, default_value_t = 80)]
     max_atoms: usize,
 
     /// The force field to use for parameter labeling.
-    #[arg(short, long, default_value = "input/tm.v2.offxml")]
     forcefield: String,
 
     /// The parameter to use when highlighting atoms in the molecules.
-    #[arg(short, long)]
     parameter: Option<String>,
 
     /// The `Parameter` type for which to extract parameters. Allowed options
     /// are valid arguments to `ForceField.get_parameter_handler`, such as
     /// Bonds, Angles, or ProperTorsions.
-    #[arg(long, default_value = "ProperTorsions")]
     parameter_type: String,
 
-    /// DBSCAN parameter specifying the acceptable distance between a core point
-    /// of a cluster and one of its neighbors.
-    #[arg(short, long, default_value_t = 0.5)]
-    epsilon: f64,
-
-    /// DBSCAN parameter specifying the minimum number of points required to
-    /// form a dense region.
-    #[arg(short, long, default_value_t = 5)]
-    min_pts: usize,
+    /// [DBSCAN] parameters
+    dbscan: DBSCAN,
 
     /// Morgan fingerprinting radius
-    #[arg(short, long, default_value_t = 4)]
     radius: u32,
 
     /// The number of threads to use. Defaults to the number of logical CPUs as
     /// detected by rayon.
-    #[arg(short, long, default_value_t = 0)]
     threads: usize,
 
     /// Whether or not to fragment the molecules before the fingerprinting
     /// analysis.
-    #[arg(short = 'x', long, default_value_t = false)]
     fragment: bool,
+}
+
+impl Config {
+    fn load(path: impl AsRef<Path>) -> Self {
+        toml::from_str(&read_to_string(path).unwrap()).unwrap()
+    }
 }
 
 fn main() -> io::Result<()> {
     env_logger::init();
 
-    let cli = Cli::parse();
+    let args: Vec<_> = std::env::args().collect();
+
+    if args.len() < 2 {
+        eprintln!("Usage: fingerprint <config.toml>");
+        std::process::exit(1);
+    }
+
+    let cli = Config::load(&args[1]);
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(cli.threads)
@@ -358,7 +392,13 @@ fn main() -> io::Result<()> {
 
     info!("running DBSCAN");
 
-    let labels = dbscan(nfps, nfps, distance_fn, cli.epsilon, cli.min_pts);
+    let labels = dbscan(
+        nfps,
+        nfps,
+        distance_fn,
+        cli.dbscan.epsilon,
+        cli.dbscan.min_pts,
+    );
 
     let max = match labels
         .iter()
