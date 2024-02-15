@@ -7,6 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use config::Dbscan;
 use log::{debug, info, trace};
 use openff_toolkit::ForceField;
 use rayon::iter::{
@@ -28,7 +29,7 @@ struct Report<'a> {
     noise: usize,
     clusters: Vec<Vec<usize>>,
     mols: Vec<ROMol>,
-    cli: &'a config::Config,
+    parameter: &'a str,
     map: HashMap<Pid, Smirks>,
     mol_map: Vec<(Pid, ROMol)>,
 }
@@ -51,10 +52,9 @@ impl Report<'_> {
             noise = self.noise
         )?;
 
-        if let Some(pid) = &self.cli.parameter {
-            if let Some(smirks) = self.map.get(pid) {
-                writeln!(out, "<p>PID: {pid}, SMIRKS: {smirks}</p>")?;
-            }
+        let pid = self.parameter;
+        if let Some(smirks) = self.map.get(pid) {
+            writeln!(out, "<p>PID: {pid}, SMIRKS: {smirks}</p>")?;
         }
 
         let mut clusters = self.clusters.clone();
@@ -87,17 +87,14 @@ impl Report<'_> {
 
     fn make_svg(&self, mol: &ROMol) -> String {
         let mut hl_atoms = Vec::new();
-        if let Some(pid) = &self.cli.parameter {
-            if self.map.get(pid).is_some() {
-                let tmp = find_matches_full(&self.mol_map, mol);
-                let got = tmp
-                    .iter()
-                    .find(|(_atoms, param_id)| param_id == &pid.as_str());
-                if let Some((atoms, _pid)) = got {
-                    hl_atoms = atoms.clone();
-                } else {
-                    panic!("smirks doesn't match any more");
-                }
+        let pid = self.parameter;
+        if self.map.get(pid).is_some() {
+            let tmp = find_matches_full(&self.mol_map, mol);
+            let got = tmp.iter().find(|(_atoms, param_id)| param_id == &pid);
+            if let Some((atoms, _pid)) = got {
+                hl_atoms = atoms.clone();
+            } else {
+                panic!("smirks doesn't match any more");
             }
         }
         mol.draw_svg(400, 300, "", &hl_atoms)
@@ -241,52 +238,36 @@ fn fragment(mols: Vec<ROMol>) -> Vec<ROMol> {
 
 mod config;
 
-fn main() -> io::Result<()> {
-    env_logger::init();
+fn single(
+    ff: &str,
+    smiles_file: &str,
+    parameter: &str,
+    ptype: &str,
+    max_atoms: usize,
+    do_fragment: bool,
+    radius: u32,
+    dbscan_conf: Dbscan,
+) -> Result<(), io::Error> {
+    info!("starting {parameter}");
 
-    let args: Vec<_> = std::env::args().collect();
-
-    if args.len() < 2 {
-        eprintln!("Usage: fingerprint <config.toml>");
-        std::process::exit(1);
-    }
-
-    let cli = config::Config::load(&args[1]);
-
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(cli.threads)
-        .build_global()
-        .unwrap();
-
-    let s = read_to_string(&cli.smiles_file).unwrap_or_else(|e| {
-        panic!("failed to read {} for {e}", cli.smiles_file)
-    });
-
-    let parameter = cli.parameter.clone().unwrap_or_else(|| {
-        Path::new(&cli.smiles_file)
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string()
-    });
-
+    let s = read_to_string(smiles_file)
+        .unwrap_or_else(|e| panic!("failed to read {} for {e}", smiles_file));
     let smiles: Vec<_> = s.lines().collect();
 
     info!("{} initial smiles", smiles.len());
 
-    let map: HashMap<Pid, Smirks> = ForceField::load(&cli.forcefield)
+    let map: HashMap<Pid, Smirks> = ForceField::load(ff)
         .unwrap()
-        .get_parameter_handler(&cli.parameter_type)
+        .get_parameter_handler(ptype)
         .unwrap()
         .parameters()
         .into_iter()
         .map(|p| (p.id(), p.smirks()))
         .collect();
 
-    let mol_map: Vec<(Pid, ROMol)> = ForceField::load(&cli.forcefield)
+    let mol_map: Vec<(Pid, ROMol)> = ForceField::load(ff)
         .unwrap()
-        .get_parameter_handler(&cli.parameter_type)
+        .get_parameter_handler(ptype)
         .unwrap()
         .parameters()
         .into_iter()
@@ -301,17 +282,16 @@ fn main() -> io::Result<()> {
 
     let mols = load_mols(
         smiles,
-        cli.max_atoms,
-        cli.fragment,
-        &parameter,
+        max_atoms,
+        do_fragment,
+        parameter,
         existing_inchis,
         &mol_map,
     );
 
     info!("making fingerprints");
 
-    let fps: Vec<_> = make_fps(&mols, cli.radius);
-
+    let fps: Vec<_> = make_fps(&mols, radius);
     let nfps = fps.len();
     let distance_fn = |i, j| {
         if i == j {
@@ -327,8 +307,8 @@ fn main() -> io::Result<()> {
         nfps,
         nfps,
         distance_fn,
-        cli.dbscan.epsilon,
-        cli.dbscan.min_pts,
+        dbscan_conf.epsilon,
+        dbscan_conf.min_pts,
     );
 
     let max = match labels
@@ -347,11 +327,7 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // each entry contains a vec of molecule indices (smiles line numbers)
-    // corresponding to that cluster. clusters[i] is the ith cluster with
-    // members clusters[i][0..n], where n is however many members there are
     let mut clusters: Vec<Vec<usize>> = vec![vec![]; max + 1];
-
     let mut noise = 0;
     for (i, l) in labels.iter().enumerate() {
         match l {
@@ -360,15 +336,9 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // largest molecule in current training and benchmark sets:
-    // sage-tm opt: 76
-    // sage-tm td: 67
-    // bench: 154
-
-    let output = Path::new(&cli.smiles_file).with_extension("html");
-
     info!("generating report");
 
+    let output = Path::new(smiles_file).with_extension("html");
     Report {
         args: std::env::args().collect::<Vec<_>>(),
         max,
@@ -376,11 +346,41 @@ fn main() -> io::Result<()> {
         noise,
         clusters,
         mols,
-        cli: &cli,
+        parameter,
         map,
         mol_map,
     }
     .generate(output)?;
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    env_logger::init();
+
+    let args: Vec<_> = std::env::args().collect();
+
+    if args.len() < 2 {
+        eprintln!("Usage: fingerprint <config.toml>");
+        std::process::exit(1);
+    }
+
+    let cli = config::Config::load(&args[1]);
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(cli.threads)
+        .build_global()
+        .unwrap();
+
+    single(
+        &cli.forcefield,
+        &cli.smiles_file,
+        &cli.parameter,
+        &cli.parameter_type,
+        cli.max_atoms,
+        cli.fragment,
+        cli.radius,
+        cli.dbscan,
+    )?;
 
     Ok(())
 }

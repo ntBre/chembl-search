@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-pub(crate) struct DBSCAN {
+pub(crate) struct Dbscan {
     /// The maximum acceptable distance between a core point of a cluster and
     /// one of its neighbors.
     pub(crate) epsilon: f64,
@@ -13,7 +13,7 @@ pub(crate) struct DBSCAN {
     pub(crate) min_pts: usize,
 }
 
-impl Default for DBSCAN {
+impl Default for Dbscan {
     /// The default parameters are taken from the
     /// 2020-03-05-OpenFF-Training-Data-Selection/select_TrainingDS.ipynb in the
     /// qca-dataset-submission repo commit 79ee3a3
@@ -25,21 +25,21 @@ impl Default for DBSCAN {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            smiles_file: String::new(),
-            max_atoms: 80,
-            forcefield: "input/tm.v2.offxml".to_owned(),
-            parameter: None,
-            parameter_type: "ProperTorsions".to_owned(),
-            dbscan: DBSCAN::default(),
-            radius: 4,
-            threads: 0,
-            fragment: false,
-        }
-    }
-}
+// impl Default for Config {
+//     fn default() -> Self {
+//         Self {
+//             smiles_file: String::new(),
+//             max_atoms: 80,
+//             forcefield: "input/tm.v2.offxml".to_owned(),
+//             parameter: None,
+//             parameter_type: "ProperTorsions".to_owned(),
+//             dbscan: DBSCAN::default(),
+//             radius: 4,
+//             threads: 0,
+//             fragment: false,
+//         }
+//     }
+// }
 
 #[derive(Deserialize)]
 pub(crate) struct Config {
@@ -53,7 +53,7 @@ pub(crate) struct Config {
     pub(crate) forcefield: String,
 
     /// The parameter to use when highlighting atoms in the molecules.
-    pub(crate) parameter: Option<String>,
+    pub(crate) parameter: String,
 
     /// The `Parameter` type for which to extract parameters. Allowed options
     /// are valid arguments to `ForceField.get_parameter_handler`, such as
@@ -61,7 +61,7 @@ pub(crate) struct Config {
     pub(crate) parameter_type: String,
 
     /// [DBSCAN] parameters
-    pub(crate) dbscan: DBSCAN,
+    pub(crate) dbscan: Dbscan,
 
     /// Morgan fingerprinting radius
     pub(crate) radius: u32,
