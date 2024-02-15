@@ -52,6 +52,17 @@ pub fn find_matches(
     params: &[(String, ROMol)],
     mol: &ROMol,
 ) -> HashSet<String> {
+    find_matches_full(params, mol).into_values().collect()
+}
+
+/// returns a map of chemical environments in `mol` to their matching parameter
+/// ids. matching starts with the first parameter and proceeds through the
+/// whole sequence of parameters, so this should follow the SMIRNOFF typing
+/// rules
+pub fn find_matches_full(
+    params: &[(String, ROMol)],
+    mol: &ROMol,
+) -> HashMap<Vec<usize>, String> {
     let mut matches = HashMap::new();
     for (id, smirks) in params {
         let env_matches = find_smarts_matches_mol(mol, smirks);
@@ -59,7 +70,7 @@ pub fn find_matches(
             matches.insert(mat, id.clone());
         }
     }
-    matches.into_values().collect()
+    matches
 }
 
 pub fn distance_matrix(nfps: usize, fps: Vec<BitVector>) -> Matrix<f64> {
