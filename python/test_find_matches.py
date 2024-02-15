@@ -30,8 +30,8 @@ def label_molecules(self, topology):
 
     parameter_matches = ValenceDict()
 
-    for match in matches:
-        parameter_matches[match] = matches[match].parameter_type
+    for m in matches:
+        parameter_matches[m] = matches[m].parameter_type
 
     return parameter_matches
 
