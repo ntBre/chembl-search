@@ -6,6 +6,50 @@ from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
+# just to allay fears about toolkits
+
+# from openff.toolkit.utils import GLOBAL_TOOLKIT_REGISTRY, OpenEyeToolkitWrapper
+# GLOBAL_TOOLKIT_REGISTRY.deregister_toolkit(OpenEyeToolkitWrapper)
+
+
+def label_molecules(self, topology):
+    from openff.toolkit import Topology
+    from openff.toolkit.typing.engines.smirnoff.parameters import (
+        VirtualSiteHandler,
+    )
+
+    # stupid generators................
+    mols = [m for m in topology.molecules]
+    assert len(mols) == 1
+
+    top_mol = Topology.from_molecules(mols[0])
+    current_molecule_labels = dict()
+    for tag, parameter_handler in self._parameter_handlers.items():
+        param_is_list = False
+
+        if type(parameter_handler) is VirtualSiteHandler:
+            param_is_list = True
+
+        matches = parameter_handler.find_matches(top_mol)
+
+        parameter_matches = matches.__class__()
+
+        if param_is_list:
+            for match in matches:
+                parameter_matches[match] = [
+                    m.parameter_type for m in matches[match]
+                ]
+        else:
+            for match in matches:
+                parameter_matches[match] = matches[match].parameter_type
+
+        current_molecule_labels[tag] = parameter_matches
+
+    return current_molecule_labels
+
+
+ForceField.label_molecules = label_molecules
+
 
 def draw_rdkit(rdmol, matches=None):
     if matches is None:
@@ -23,18 +67,18 @@ def draw_rdkit(rdmol, matches=None):
 
 
 def all_matches(ff, mol):
-    labels = ff.label_molecules(mol.to_topology())[0]["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
     return {p.id for p in labels.values()}
 
 
 def debug_matches(ff, mol):
-    labels = ff.label_molecules(mol.to_topology())[0]["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
     for env, p in labels.items():
         print(env, p.id)
 
 
 def get_matches(ff, mol, param):
-    labels = ff.label_molecules(mol.to_topology())[0]["ProperTorsions"]
+    labels = ff.label_molecules(mol.to_topology())["ProperTorsions"]
     ret = []
     for env, p in labels.items():
         if p.id == param:
@@ -52,7 +96,6 @@ smiles = (
     "[H]C(=O)C([H])([H])C([H])([H])[N+]12N3[C@@]([H])(C([H])([H])C([H])([H])"
     "[C@]3([H])C1([H])[H])C2([H])[H]"
 )
-smiles = "[H]N(C([H])([H])C([H])([H])[H])[N+](C([H])([H])[H])(C([H])([H])[H])C([H])([H])[H]"
 mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 print(smiles, end=" ")
 for p in sorted(all_matches(ff, mol)):
