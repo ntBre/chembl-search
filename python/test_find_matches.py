@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from openff.toolkit import ForceField, Molecule
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
@@ -26,6 +27,12 @@ def all_matches(ff, mol):
     return {p.id for p in labels.values()}
 
 
+def debug_matches(ff, mol):
+    labels = ff.label_molecules(mol.to_topology())[0]["ProperTorsions"]
+    for env, p in labels.items():
+        print(env, p.id)
+
+
 def get_matches(ff, mol, param):
     labels = ff.label_molecules(mol.to_topology())[0]["ProperTorsions"]
     ret = []
@@ -45,12 +52,15 @@ smiles = (
     "[H]C(=O)C([H])([H])C([H])([H])[N+]12N3[C@@]([H])(C([H])([H])C([H])([H])"
     "[C@]3([H])C1([H])[H])C2([H])[H]"
 )
+smiles = "[H]N(C([H])([H])C([H])([H])[H])[N+](C([H])([H])[H])(C([H])([H])[H])C([H])([H])[H]"
+mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 print(smiles, end=" ")
-for p in sorted(
-    all_matches(ff, Molecule.from_smiles(smiles, allow_undefined_stereo=True))
-):
+for p in sorted(all_matches(ff, mol)):
     print(f"{p}", end=" ")
 print()
+
+if len(sys.argv) > 1:
+    debug_matches(ff, mol)
 
 # with open("td.dat") as inp:
 #     last = None

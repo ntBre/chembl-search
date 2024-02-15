@@ -153,6 +153,7 @@ mod tests {
 
     #[test]
     fn test_find_matches() {
+        env_logger::init();
         // test cases are generated with test_find_matches.py on a given SMILES
         // with the tm.v2.offxml forcefield
         let data = read_to_string("testfiles/find_matches.dat").unwrap();
@@ -162,6 +163,7 @@ mod tests {
             let v: Vec<_> = sp.collect();
             (smiles, v)
         });
+        let total = tests.clone().count();
         let ff = "input/tm.v2.offxml";
         let params: Vec<(String, ROMol)> = ForceField::load(ff)
             .unwrap()
@@ -178,7 +180,12 @@ mod tests {
             let mut got: Vec<_> =
                 find_matches(&params, &mol).into_iter().collect();
             got.sort();
-            assert_eq!(got, want, "case {i} failed with smiles =\n{s}");
+            assert_eq!(
+                got,
+                want,
+                "case {}/{total} failed with smiles =\n{s}",
+                i + 1
+            );
         }
     }
 }

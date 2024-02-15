@@ -14,3 +14,7 @@ ZINC-downloader-3D-sdf.gz.curl
 chembl_33.sdf
 /callgrind.out
 /slow.log
+
+output/*.html
+td.dat
+opt.dat
