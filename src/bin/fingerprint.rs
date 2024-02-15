@@ -30,6 +30,8 @@ struct Report<'a> {
     clusters: Vec<Vec<usize>>,
     mols: Vec<ROMol>,
     cli: &'a Cli,
+    map: HashMap<Pid, Smirks>,
+    mol_map: Vec<(Pid, ROMol)>,
 }
 
 type Pid = String;
@@ -50,24 +52,8 @@ impl Report<'_> {
             noise = self.noise
         )?;
 
-        // TODO why am I computing these again here???
-        let map: HashMap<Pid, Smirks> = ForceField::load(&self.cli.forcefield)
-            .unwrap()
-            .get_parameter_handler(&self.cli.parameter_type)
-            .unwrap()
-            .parameters()
-            .into_iter()
-            .map(|p| (p.id(), p.smirks()))
-            .collect();
-
-        let mol_map: Vec<(Pid, ROMol)> = map
-            .clone()
-            .into_iter()
-            .map(|(pid, smarts)| (pid, ROMol::from_smarts(&smarts)))
-            .collect();
-
         if let Some(pid) = &self.cli.parameter {
-            if let Some(smirks) = map.get(pid) {
+            if let Some(smirks) = self.map.get(pid) {
                 writeln!(out, "<p>PID: {pid}, SMIRKS: {smirks}</p>")?;
             }
         }
@@ -77,7 +63,7 @@ impl Report<'_> {
 
         for (i, c) in clusters.iter().enumerate() {
             writeln!(out, "<h1>Cluster {}, {} molecules</h1>", i + 1, c.len())?;
-            self.add_svg(&mut out, "Central Molecule", &map, c[0], &mol_map)?;
+            self.add_svg(&mut out, "Central Molecule", c[0])?;
         }
         writeln!(out, "</html>")?;
         Ok(())
@@ -87,14 +73,12 @@ impl Report<'_> {
         &self,
         out: &mut impl Write,
         msg: &str,
-        map: &HashMap<String, String>,
         idx: usize,
-        mol_map: &[(Pid, ROMol)],
     ) -> io::Result<()> {
         let mol = &self.mols[idx];
         let smile = mol.to_smiles();
         println!("{smile}");
-        let svg = self.make_svg(map, mol, mol_map);
+        let svg = self.make_svg(mol);
         writeln!(out, "<p>{msg}</p>")?;
         writeln!(out, "<p>{} atoms</p>", mol.num_atoms())?;
         writeln!(out, "<p>SMILES: {smile}</p>")?;
@@ -102,16 +86,11 @@ impl Report<'_> {
         Ok(())
     }
 
-    fn make_svg(
-        &self,
-        map: &HashMap<Pid, Smirks>,
-        mol: &ROMol,
-        mol_map: &[(Pid, ROMol)],
-    ) -> String {
+    fn make_svg(&self, mol: &ROMol) -> String {
         let mut hl_atoms = Vec::new();
         if let Some(pid) = &self.cli.parameter {
-            if map.get(pid).is_some() {
-                let tmp = find_matches_full(mol_map, mol);
+            if self.map.get(pid).is_some() {
+                let tmp = find_matches_full(&self.mol_map, mol);
                 let got = tmp
                     .iter()
                     .find(|(_atoms, param_id)| param_id == &pid.as_str());
@@ -427,6 +406,8 @@ fn main() -> io::Result<()> {
         clusters,
         mols,
         cli: &cli,
+        map,
+        mol_map,
     }
     .generate(output)?;
 
