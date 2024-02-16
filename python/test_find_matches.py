@@ -4,7 +4,6 @@ from collections.abc import MutableMapping
 
 from openff.toolkit import ForceField, Molecule, Topology
 from openff.toolkit.utils import GLOBAL_TOOLKIT_REGISTRY, RDKitToolkitWrapper
-from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
 
@@ -82,6 +81,7 @@ def _find_matches(
     entity,
     transformed_dict_cls=ValenceDict,
     unique=False,
+    debug=False,
 ):
     matches = transformed_dict_cls()
 
@@ -92,9 +92,9 @@ def _find_matches(
             parameter_type.smirks,
             unique=unique,
         ):
-            print(
-                f"{environment_match.topology_atom_indices} => {parameter_type.id}"
-            )
+            idxs = environment_match.topology_atom_indices
+            if debug:
+                print(f"{idxs} => {parameter_type.id}")
             # Update the matches for this parameter type.
             handler_match = self._Match(parameter_type, environment_match)
             matches_for_this_type[
