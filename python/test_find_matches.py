@@ -1,8 +1,8 @@
 import logging
 import sys
+from collections.abc import MutableMapping
 
 from openff.toolkit import ForceField, Molecule, Topology
-from openff.toolkit.topology.topology import ValenceDict
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
@@ -18,6 +18,73 @@ if use_rdkit:
     )
 
     GLOBAL_TOOLKIT_REGISTRY.deregister_toolkit(OpenEyeToolkitWrapper)
+
+
+class _TransformedDict(MutableMapping):
+    def __init__(self, *args, **kwargs):
+        self.store = dict()
+        self.update(dict(*args, **kwargs))  # use the free update to set keys
+
+    def __getitem__(self, key):
+        return self.store[self.__keytransform__(key)]
+
+    def __setitem__(self, key, value):
+        self.store[self.__keytransform__(key)] = value
+
+    def __delitem__(self, key):
+        del self.store[self.__keytransform__(key)]
+
+    def __iter__(self):
+        return iter(sorted(self.store, key=self.__sortfunc__))
+
+    def __len__(self):
+        return len(self.store)
+
+    def __keytransform__(self, key):
+        return key
+
+    @staticmethod
+    def __sortfunc__(key):
+        return key
+
+    @classmethod
+    def _return_possible_index_of(cls, key, possible, permutations):
+        key = tuple(key)
+        possible = [tuple(p) for p in possible]
+        impossible = [p for p in possible if p not in permutations]
+        if impossible:
+            raise ValueError(
+                f"Impossible permutations {impossible} for key {key}!"
+            )
+        possible_permutations = [k for k in permutations if k in possible]
+        for i, permutation in enumerate(possible_permutations):
+            if key == permutation:
+                return i
+        raise ValueError(f"key {key} not in possible {possible}")
+
+
+class ValenceDict(_TransformedDict):
+    @staticmethod
+    def key_transform(key):
+        """Reverse tuple if first element is larger than last element."""
+        key = tuple(key)
+        if key[0] > key[-1]:
+            key = tuple(reversed(key))
+        return key
+
+    @classmethod
+    def index_of(cls, key, possible=None):
+        refkey = cls.key_transform(key)
+        permutations = {refkey: 0, refkey[::-1]: 1}
+        if possible is not None:
+            return cls._return_possible_index_of(
+                key, possible=possible, permutations=permutations
+            )
+        else:
+            return permutations[tuple(key)]
+
+    def __keytransform__(self, key):
+        return self.key_transform(key)
 
 
 def label_molecules(self, topology):

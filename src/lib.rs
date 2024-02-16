@@ -67,7 +67,10 @@ pub fn find_matches_full(
     let mut matches = HashMap::new();
     for (id, smirks) in params {
         let env_matches = find_smarts_matches_mol(mol, smirks);
-        for mat in env_matches {
+        for mut mat in env_matches {
+            if mat.first().unwrap() > mat.last().unwrap() {
+                mat.reverse();
+            }
             trace!("{mat:?} => {id}");
             matches.insert(mat, id.clone());
         }
