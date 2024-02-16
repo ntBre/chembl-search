@@ -25,8 +25,10 @@ clippy:
 
 run:
 	cargo run --bin rsearch --release -- \
+				--molecule-file data/chembl_33.sdf \
 				--output-dir output \
-				--forcefield tm.v2.offxml
+				--search-params input/want.params \
+				--forcefield input/tm.v2.offxml
 
 all.smiles:
 	find . -name '*.html' | xargs ./aggregate.awk > $@
