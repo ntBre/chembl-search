@@ -156,7 +156,6 @@ mod tests {
 
     #[test]
     fn test_find_matches() {
-        env_logger::init();
         // test cases are generated with test_find_matches.py on a given SMILES
         // with the tm.v2.offxml forcefield
         let data = read_to_string("testfiles/find_matches.dat").unwrap();

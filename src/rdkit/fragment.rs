@@ -337,7 +337,6 @@ C(SSC(/C([H])=N/C([H])([H])C(=O)OC([H])([H])C([H])([H])[H])(C([H])([H])C([H])\
 
     #[test]
     fn bad_recap() {
-        env_logger::init();
         let smiles =
             "[H]C1=C(C([H])([H])[C@@]([H])(C(=O)N([H])[C@@]2([H])C(=O)\
 N([H])[C@@]([H])(C([H])([H])c3c([H])nc([H])c([H])c3[H])C(=O)N([H])[C@]([H])\

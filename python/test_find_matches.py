@@ -3,6 +3,7 @@ import sys
 from collections.abc import MutableMapping
 
 from openff.toolkit import ForceField, Molecule, Topology
+from openff.toolkit.utils import GLOBAL_TOOLKIT_REGISTRY, RDKitToolkitWrapper
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
 logging.getLogger("openff").setLevel(logging.ERROR)
@@ -11,10 +12,7 @@ logging.getLogger("openff").setLevel(logging.ERROR)
 use_rdkit = False  # just to allay fears about toolkits
 
 if use_rdkit:
-    from openff.toolkit.utils import (
-        GLOBAL_TOOLKIT_REGISTRY,
-        OpenEyeToolkitWrapper,
-    )
+    from openff.toolkit.utils import OpenEyeToolkitWrapper
 
     GLOBAL_TOOLKIT_REGISTRY.deregister_toolkit(OpenEyeToolkitWrapper)
 
@@ -68,6 +66,17 @@ class ValenceDict(_TransformedDict):
         return self.key_transform(key)
 
 
+def chemical_environment_matches(
+    self,
+    query: str,
+    unique: bool = False,
+    toolkit_registry=GLOBAL_TOOLKIT_REGISTRY,
+):
+    return RDKitToolkitWrapper().find_smarts_matches(
+        self, query, unique=unique
+    )
+
+
 def _find_matches(
     self,
     entity,
@@ -83,6 +92,9 @@ def _find_matches(
             parameter_type.smirks,
             unique=unique,
         ):
+            print(
+                f"{environment_match.topology_atom_indices} => {parameter_type.id}"
+            )
             # Update the matches for this parameter type.
             handler_match = self._Match(parameter_type, environment_match)
             matches_for_this_type[
