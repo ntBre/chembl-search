@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn first_molecule() {
         let path = "/home/brent/omsf/chembl/data/chembl_33.sdf";
-        let mut m = SDMolSupplier::new(path);
+        let mut m = SDMolSupplier::new(path).unwrap();
 
         let forcefield = "openff-2.1.0.offxml";
         let ff = ForceField::load(forcefield).unwrap();

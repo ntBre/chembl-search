@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 
 use clap::Parser;
+use log::trace;
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rsearch::rdkit::{RDError, ROMol, SDMolSupplier};
@@ -42,8 +43,12 @@ struct Cli {
 }
 
 fn main() {
+    env_logger::init();
+
     let cli = Cli::parse();
-    let m = SDMolSupplier::new(cli.molecule_file);
+    trace!("initializing mol supplier");
+    let m = SDMolSupplier::new(cli.molecule_file).unwrap();
+    trace!("initialized mol supplier");
     let ff = ForceField::load(&cli.forcefield).unwrap();
     let h = ff.get_parameter_handler(&cli.parameter_type).unwrap();
     let mut params = Vec::new();
@@ -68,9 +73,13 @@ fn main() {
         let Ok(mut mol) = mol else {
             return Vec::new();
         };
+        trace!("calling clean");
         mol.openff_clean();
+        trace!("finished clean");
 
+        trace!("calling find_matches");
         let matches = find_matches(&params, &mol);
+        trace!("finished find_matches");
 
         let mut res: Vec<(String, String)> = Vec::new();
         let mut smiles = None;

@@ -36,7 +36,7 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let m = SDMolSupplier::new(cli.molecule_file);
+    let m = SDMolSupplier::new(cli.molecule_file).unwrap();
     let params: Vec<_> = load_want(&cli.search_params)
         .into_iter()
         .map(|s| {
