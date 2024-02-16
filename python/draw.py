@@ -32,8 +32,6 @@ def get_matches(ff, mol, param):
     for env, p in labels.items():
         if p.id == param:
             ret.append(env)
-        else:
-            print("matched", p.id)
 
     return ret
 
@@ -41,28 +39,16 @@ def get_matches(ff, mol, param):
 ff = ForceField("input/tm.v2.offxml")
 h = ff.get_parameter_handler("ProperTorsions")
 
-smiles = (
-    "[H]C(=O)C([H])([H])C([H])([H])[N+]12N3[C@@]([H])(C([H])([H])C([H])([H])"
-    "[C@]3([H])C1([H])[H])C2([H])[H]"
-)
-print(smiles, end=" ")
-for p in sorted(
-    all_matches(ff, Molecule.from_smiles(smiles, allow_undefined_stereo=True))
-):
-    print(f"{p}", end=" ")
-print()
-
-# with open("td.dat") as inp:
-#     last = None
-#     for line in inp:
-#         [param, smiles] = line.split()
-#         if param != last:
-#             print(f"<h1>{param}</h1>")
-#             smirks = h.get_parameter(dict(id=param))[0].smirks
-#             print(f"<p>{smirks}</p>")
-#         last = param
-#         mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
-#         matches = get_matches(ff, mol, param)
-#         print(smiles)
-#         svg = draw_rdkit(mol.to_rdkit(), matches[0])
-#         # print(svg)
+with open("td.dat") as inp:
+    last = None
+    for line in inp:
+        [param, smiles] = line.split()
+        if param != last:
+            print(f"<h1>{param}</h1>")
+            smirks = h.get_parameter(dict(id=param))[0].smirks
+            print(f"<p>{smirks}</p>")
+        last = param
+        mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
+        matches = get_matches(ff, mol, param)
+        svg = draw_rdkit(mol.to_rdkit(), matches[0])
+        print(svg)

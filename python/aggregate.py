@@ -28,6 +28,8 @@ def get_smiles(path):
 with open("td.dat", "w") as td, open("opt.dat", "w") as opt:
     for param in params:
         p = output.joinpath(param).with_suffix(".html")
+        if not p.exists():
+            continue
         smiles = get_smiles(p)
         for s in smiles[:2]:
             print(param, s, file=td)
