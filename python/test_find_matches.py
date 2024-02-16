@@ -49,18 +49,7 @@ class _TransformedDict(MutableMapping):
 
     @classmethod
     def _return_possible_index_of(cls, key, possible, permutations):
-        key = tuple(key)
-        possible = [tuple(p) for p in possible]
-        impossible = [p for p in possible if p not in permutations]
-        if impossible:
-            raise ValueError(
-                f"Impossible permutations {impossible} for key {key}!"
-            )
-        possible_permutations = [k for k in permutations if k in possible]
-        for i, permutation in enumerate(possible_permutations):
-            if key == permutation:
-                return i
-        raise ValueError(f"key {key} not in possible {possible}")
+        raise NotImplementedError
 
 
 class ValenceDict(_TransformedDict):
@@ -74,14 +63,7 @@ class ValenceDict(_TransformedDict):
 
     @classmethod
     def index_of(cls, key, possible=None):
-        refkey = cls.key_transform(key)
-        permutations = {refkey: 0, refkey[::-1]: 1}
-        if possible is not None:
-            return cls._return_possible_index_of(
-                key, possible=possible, permutations=permutations
-            )
-        else:
-            return permutations[tuple(key)]
+        raise NotImplementedError
 
     def __keytransform__(self, key):
         return self.key_transform(key)
