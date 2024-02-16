@@ -68,13 +68,40 @@ class ValenceDict(_TransformedDict):
         return self.key_transform(key)
 
 
+def _find_matches(
+    self,
+    entity,
+    transformed_dict_cls=ValenceDict,
+    unique=False,
+):
+    matches = transformed_dict_cls()
+
+    for parameter_type in self._parameters:
+        matches_for_this_type = {}
+
+        for environment_match in entity.chemical_environment_matches(
+            parameter_type.smirks,
+            unique=unique,
+        ):
+            # Update the matches for this parameter type.
+            handler_match = self._Match(parameter_type, environment_match)
+            matches_for_this_type[
+                environment_match.topology_atom_indices
+            ] = handler_match
+
+        # Update matches of all parameter types.
+        matches.update(matches_for_this_type)
+
+    return matches
+
+
 def label_molecules(self, topology):
     mols = [m for m in topology.molecules]  # stupid generators...
     assert len(mols) == 1
 
     top_mol = Topology.from_molecules(mols[0])
     parameter_handler = self.get_parameter_handler("ProperTorsions")
-    matches = parameter_handler.find_matches(top_mol)
+    matches = _find_matches(parameter_handler, top_mol)
 
     parameter_matches = ValenceDict()
 
