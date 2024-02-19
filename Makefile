@@ -41,3 +41,10 @@ profile = RUSTFLAGS=-g cargo build --release --bin $1 \
 prof.fingerprint:
 	$(call profile, fingerprint, output/t48a.smiles -m 10 -p t18a)
 
+td.html: td.dat
+	python python/draw.py --input-file $< --output-file $@
+
+opt.html: opt.dat
+	python python/draw.py --input-file $< --output-file $@
+
+reports: td.html opt.html
