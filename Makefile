@@ -41,12 +41,3 @@ profile = RUSTFLAGS=-g cargo build --release --bin $1 \
 prof.fingerprint:
 	$(call profile, fingerprint, output/t48a.smiles -m 10 -p t18a)
 
-reports:
-	echo "# $$(date)" > new.dat
-	for i in output/*.smiles; do \
-		param=$$(basename $${i%.smiles}); \
-		echo $$param >> new.dat; \
-		cargo run --bin fingerprint --release -- \
-			$$i --min-pts 1 -p $$param -e 0.5 >> new.dat; \
-		echo finished $$param; \
-	done
