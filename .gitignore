@@ -16,3 +16,4 @@ chembl_33.sdf
 /slow.log
 
 output/*.html
+/.output.bak/
