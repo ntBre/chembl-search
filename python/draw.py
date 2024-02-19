@@ -1,5 +1,6 @@
 import logging
 
+import click
 from openff.toolkit import ForceField, Molecule
 from rdkit.Chem.Draw import MolsToGridImage, rdDepictor, rdMolDraw2D
 
@@ -36,19 +37,27 @@ def get_matches(ff, mol, param):
     return ret
 
 
-ff = ForceField("input/tm.v2.offxml")
-h = ff.get_parameter_handler("ProperTorsions")
+@click.command()
+@click.option("--input-file", "-i", default="td.dat")
+@click.option("--output-file", "-o", default="td.html")
+def main(input_file, output_file):
+    ff = ForceField("input/tm.v2.offxml")
+    h = ff.get_parameter_handler("ProperTorsions")
 
-with open("td.dat") as inp:
-    last = None
-    for line in inp:
-        [param, smiles] = line.split()
-        if param != last:
-            print(f"<h1>{param}</h1>")
-            smirks = h.get_parameter(dict(id=param))[0].smirks
-            print(f"<p>{smirks}</p>")
-        last = param
-        mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
-        matches = get_matches(ff, mol, param)
-        svg = draw_rdkit(mol.to_rdkit(), matches[0])
-        print(svg)
+    with open(input_file) as inp, open(output_file, "w") as out:
+        last = None
+        for line in inp:
+            [param, smiles] = line.split()
+            if param != last:
+                out.write(f"<h1>{param}</h1>\n")
+                smirks = h.get_parameter(dict(id=param))[0].smirks
+                out.write(f"<p>{smirks}</p>\n")
+            last = param
+            mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
+            matches = get_matches(ff, mol, param)
+            svg = draw_rdkit(mol.to_rdkit(), matches[0])
+            out.write(svg + "\n")
+
+
+if __name__ == "__main__":
+    main()
