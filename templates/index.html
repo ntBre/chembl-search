@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Welcome to chembl-search</h1>
+
+<p>Please select a parameter from the list below:</p>
+
+{% for pid in parameter_ids %}
+<a href="param/{{pid}}">{{pid}}</a>
+{% endfor %}
+
+{% endblock %}

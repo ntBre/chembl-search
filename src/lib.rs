@@ -16,6 +16,7 @@ pub mod rdkit;
 
 pub mod cluster;
 pub mod matrix;
+pub mod utils;
 
 /// load a sequence of newline-separated entries from `path` and collect them
 /// into a HashSet

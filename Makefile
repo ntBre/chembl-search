@@ -48,3 +48,6 @@ opt.html: opt.dat
 	python python/draw.py --input-file $< --output-file $@
 
 reports: td.html opt.html
+
+serve:
+	cargo run --bin server -- fingerprint.toml
