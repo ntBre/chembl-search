@@ -6,6 +6,7 @@ use std::{
 use axum::{routing::get, Router};
 use config::{Config, Parameter};
 use openff_toolkit::ForceField;
+use templates::Param;
 use tokio::net::TcpListener;
 
 mod config;
@@ -15,6 +16,8 @@ mod templates;
 #[derive(Default)]
 struct ParamState {
     smiles_list: Option<Vec<String>>,
+    param_page: Option<Param>,
+    nclusters: usize,
 }
 
 struct AppState {

@@ -26,15 +26,21 @@ use crate::{
 pub(crate) async fn index(
     State(state): State<Arc<Mutex<AppState>>>,
 ) -> Html<String> {
+    let state = state.lock().unwrap();
+    let parameter_ids: Vec<_> =
+        state.cli.parameters.iter().map(|p| p.id.clone()).collect();
     Index {
-        parameter_ids: state
-            .lock()
-            .unwrap()
-            .cli
-            .parameters
+        cluster_counts: parameter_ids
             .iter()
-            .map(|p| p.id.clone())
+            .map(|pid| {
+                if let Some(ps) = state.param_states.get(pid) {
+                    ps.nclusters
+                } else {
+                    0
+                }
+            })
             .collect(),
+        parameter_ids,
     }
     .render()
     .unwrap()
@@ -67,12 +73,14 @@ fn load_smiles(
     ret
 }
 
+/// returns the generated clustering report from [Report::write] as a String,
+/// along with the number of clusters
 fn single(
     ff: &str,
     max_atoms: usize,
     radius: u32,
     param: Parameter,
-) -> Result<String, std::io::Error> {
+) -> Result<(String, usize), std::io::Error> {
     debug!("preparing to read smiles file: {}", param.smiles);
     let s = read_to_string(&param.smiles)
         .unwrap_or_else(|e| panic!("failed to read {} for {e}", param.smiles));
@@ -111,7 +119,7 @@ fn single(
     let mols = load_mols(
         smiles,
         max_atoms,
-        dbg!(param.fragment),
+        param.fragment,
         &param.id,
         existing_inchis,
         &mol_map,
@@ -174,7 +182,7 @@ fn single(
     }
     .write(&mut output)
     .unwrap();
-    Ok(output)
+    Ok((output, max + 1))
 }
 
 pub(crate) async fn param(
@@ -183,9 +191,9 @@ pub(crate) async fn param(
     Query(params): Query<HashMap<String, String>>,
 ) -> Html<String> {
     let mut state = state.lock().unwrap();
-    let smarts = state.pid_to_smarts[&pid].clone();
     let param: Parameter = state.param_by_id(&pid).unwrap().clone();
     let smiles_list = {
+        let smarts = state.pid_to_smarts[&pid].clone();
         let ps = state.param_states.entry(pid.clone()).or_default();
         if ps.smiles_list.is_none() {
             let collect = load_smiles(&param.smiles, &smarts);
@@ -193,36 +201,52 @@ pub(crate) async fn param(
         }
         ps.smiles_list.clone().unwrap()
     };
+    // this means Cluster button was pressed, so we overwrite whatever was there
+    // before
     let tmpl = if params.get("eps").is_some() {
         {
             let param = state.param_by_id_mut(&pid).unwrap();
             param.dbscan.epsilon = params.get("eps").unwrap().parse().unwrap();
             param.dbscan.min_pts =
                 params.get("min_pts").unwrap().parse().unwrap();
-            param.fragment =
-                dbg!(params.get("fragment")) == Some(&"true".to_owned());
+            param.fragment = params.get("fragment") == Some(&"true".to_owned());
         }
         let param = state.param_by_id_mut(&pid).unwrap().clone();
-        let report = single(
+        let (report, nclusters) = single(
             &state.cli.forcefield,
             state.cli.max_atoms,
             state.cli.radius,
             param.clone(),
         )
         .unwrap();
+        state.param_states.get_mut(&pid).unwrap().nclusters = nclusters;
         Param {
             do_fragment: param.fragment,
             dbscan: param.dbscan,
-            pid,
+            pid: pid.clone(),
             body: Body::Report(report),
         }
+    } else if state
+        .param_states
+        .get(&pid)
+        .is_some_and(|s| s.param_page.is_some())
+    {
+        state
+            .param_states
+            .get(&pid)
+            .unwrap()
+            .param_page
+            .clone()
+            .unwrap()
     } else {
         Param {
             do_fragment: param.fragment,
             dbscan: param.dbscan,
-            pid,
+            pid: pid.clone(),
             body: Body::SmilesList(smiles_list),
         }
     };
+    let slot = state.param_states.get_mut(&pid).unwrap();
+    slot.param_page = Some(tmpl.clone());
     tmpl.render().unwrap().into()
 }
