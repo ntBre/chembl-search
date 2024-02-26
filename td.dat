@@ -4,7 +4,7 @@ t18b [H]c1c([H])c([H])c(C([H])([H])C(N(C([H])([H])[H])C([H])([H])[H])=[N+]([H])[
 t87a [H]N([H])C(N([H])[H])=[N+](C([H])([H])[H])C([H])([H])[H]
 t87a [H]C1=C(C([H])([H])C([H])([H])N([H])[H])C([H])([H])[N+](=C(N([H])[H])N([H])[H])C1([H])[H]
 t130h [H]N([H])c1nc([N+](N([H])[H])(C([H])([H])[H])C([H])([H])[H])c(C#N)c(C#N)c1C#N
-t120h [H]C1([H])S(=NC#N)C([H])([H])C1([H])[H]
+t120h [H]N=S(C([H])([H])[H])C([H])(C([H])([H])[H])C([H])([H])[H]
 t120h [H]N=S(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H]
 t119h [H]N=S(C([H])([H])[H])C([H])([H])[H]
 t119h [H]C1([H])S(=NC#N)C([H])([H])C1([H])[H]
@@ -46,5 +46,5 @@ t165 [H]/C1=C(/[H])C#CC([H])([H])C([H])([H])N([H])C([H])([H])C#C1
 t165 [H]/C(=C(/C#Cc1c([H])c([H])c(C(F)(F)F)c([H])c1[H])c1c([H])c([H])c(Br)c([H])c1[H])C([H])([H])[H]
 t141b [H]/C(=C(/Cl)C([H])([H])[H])C([H])([H])SC1=NN2C(=O)c3c([H])c([H])c([H])c([H])c3N=C2S1
 t141b [H]C1=C2N(N=N1)c1c(I)c([H])c(I)c([H])c1C(=O)N1C([H])([H])C([H])([H])C([H])([H])[C@@]21[H]
-t83h [H]C1=C(Br)[N+]([O-])=NN1[H]
-t83h [H]C(=O)C1=[N+]([O-])c2c([H])c(C(F)(F)F)c([H])c([N+](=O)[O-])c2S1
+t83h [H]C#CC(=O)C([H])([H])C([H])([H])C([H])([H])/N=[N+](\[O-])C([H])=C([H])[H]
+t83h [H]C([H])([H])C1=NN(C([H])([H])[H])C(C([H])([H])[H])=C1/[N+]([O-])=N/C#N
