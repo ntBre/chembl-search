@@ -50,4 +50,4 @@ opt.html: opt.dat
 reports: td.html opt.html
 
 serve:
-	cargo run --bin server -- fingerprint.toml
+	cargo run --bin server --release -- fingerprint.toml
