@@ -28,6 +28,7 @@ pub enum Body {
 #[derive(Clone, Template)]
 #[template(path = "param.html")]
 pub(crate) struct Param {
+    pub smarts: String,
     pub dbscan: Dbscan,
     pub do_fragment: bool,
     pub pid: String,

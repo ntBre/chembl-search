@@ -4,6 +4,7 @@
 <a href="/">Home</a>
 
 <h1>{{pid}}</h1>
+<p>SMIRKS: {{smarts}}</p>
 
 <form action="/param/{{pid}}">
   <label for="eps">Epsilon</label>
@@ -21,9 +22,10 @@
 {% match body %}
 	{% when Body::SmilesList with {total_mols, mols} %}
 		<h2>Showing {{mols.len()}}/{{total_mols}} molecules</h2>
-		{% for m in mols.iter() %}
-		<p>{{m.natoms}}</p>
-		<p>{{m.smiles}}</p>
+		{% for (i, m) in mols.iter().enumerate() %}
+		<h3>Molecule {{i+1}}</h3>
+		<p>{{m.natoms}} atoms</p>
+		<p>SMILES: {{m.smiles}}</p>
 		<p>{{m.svg|safe}}</p>
 		{% endfor %}
 	{% when Body::Report with (s) %}

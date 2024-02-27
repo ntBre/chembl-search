@@ -198,14 +198,26 @@ pub(crate) async fn param(
 ) -> Html<String> {
     let mut state = state.lock().unwrap();
     let param: Parameter = state.param_by_id(&pid).unwrap().clone();
+    let smarts = state.pid_to_smarts[&pid].clone();
     let smiles_list = {
-        let smarts = state.pid_to_smarts[&pid].clone();
         let ps = state.param_states.entry(pid.clone()).or_default();
         if ps.smiles_list.is_none() {
             let collect = load_smiles(&param.smiles, &smarts);
             ps.smiles_list = Some(collect);
         }
         ps.smiles_list.clone().unwrap()
+    };
+    // invalidate the cached page if max is provided. TODO save max_draw so that
+    // we dont invalidate if it doesn't change
+    let mut invalidate = false;
+    const MAX_DRAW: usize = 50; /* the maximum number of mols to draw */
+    let max_draw = if let Some(Ok(max_draw)) =
+        params.get("max").map(|s| s.parse::<usize>())
+    {
+        invalidate = true;
+        max_draw
+    } else {
+        MAX_DRAW
     };
     // this means Cluster button was pressed, so we overwrite whatever was there
     // before
@@ -227,15 +239,17 @@ pub(crate) async fn param(
         .unwrap();
         state.param_states.get_mut(&pid).unwrap().nclusters = nclusters;
         Param {
+            smarts,
             do_fragment: param.fragment,
             dbscan: param.dbscan,
             pid: pid.clone(),
             body: Body::Report(report),
         }
-    } else if state
-        .param_states
-        .get(&pid)
-        .is_some_and(|s| s.param_page.is_some())
+    } else if !invalidate
+        && state
+            .param_states
+            .get(&pid)
+            .is_some_and(|s| s.param_page.is_some())
     {
         state
             .param_states
@@ -245,7 +259,6 @@ pub(crate) async fn param(
             .clone()
             .unwrap()
     } else {
-        const MAX_DRAW: usize = 50; /* the maximum number of mols to draw */
         let mol_map = get_mol_map(&state.cli.forcefield, &param.typ);
         let mut mols: Vec<_> = smiles_list
             .into_par_iter()
@@ -262,7 +275,7 @@ pub(crate) async fn param(
         let total_mols = mols.len();
         let mols = mols
             .into_iter()
-            .take(MAX_DRAW)
+            .take(max_draw)
             .map(|(mut mol, smiles, _natoms)| {
                 mol.openff_clean();
                 let (hl_atoms, _pid) = find_matches_full(&mol_map, &mol)
@@ -279,6 +292,7 @@ pub(crate) async fn param(
             })
             .collect();
         Param {
+            smarts,
             do_fragment: param.fragment,
             dbscan: param.dbscan,
             pid: pid.clone(),
