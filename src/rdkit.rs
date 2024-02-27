@@ -197,9 +197,9 @@ pub mod bitvector {
 
 pub struct ROMol(*mut RDKit_ROMol);
 
-impl ToString for ROMol {
-    fn to_string(&self) -> String {
-        self.to_smiles()
+impl Display for ROMol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_smiles())
     }
 }
 
