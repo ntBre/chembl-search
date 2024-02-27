@@ -41,8 +41,6 @@ t72h [H]C(=O)C1(C([H])([H])[H])C([H])=C([H])C([H])=[N+]1[O-]
 t72h [H]/C(=C1/S/C(=C(/[H])C2=[N+](C([H])([H])C([H])([H])[H])c3c([H])c([H])c([H])c([H])c3S2)SC1=O)C([H])([H])[H]
 t115h [H]C1=C([H])N2C(=N1)[S+]([O-])C([H])([H])C2([H])[H]
 t115h [H]C#CC([H])([H])OC1=NOC2=C1C([H])([H])[S+](C([H])([H])[H])C([H])([H])C2([H])[H]
-t165 [H]/C1=C(/[H])C#CC([H])([H])C([H])([H])N([H])C([H])([H])C#C1
-t165 [H]/C(=C(/C#Cc1c([H])c([H])c(C(F)(F)F)c([H])c1[H])c1c([H])c([H])c(Br)c([H])c1[H])C([H])([H])[H]
 t141b [H]c1c(Cl)c(N([H])[H])c(Cl)c([H])c1C1=NC([H])([H])C([H])([H])N2C1=c1c([H])c([H])c(C(F)(F)F)c([H])c1=[N+]2[O-]
 t141b [H]c1c([H])c([H])c2c(c1[H])C(=O)C(=O)C1=C2N=C2N=NN([H])N2C1([H])c1c([H])c(OC([H])([H])[H])c([H])c(OC([H])([H])[H])c1[H]
 t83h [H]C#CC(=O)C([H])([H])C([H])([H])C([H])([H])/N=[N+](\[O-])C([H])=C([H])[H]
