@@ -10,8 +10,18 @@ pub(crate) struct Index {
 }
 
 #[derive(Clone)]
+pub struct DrawMol {
+    pub smiles: String,
+    pub natoms: usize,
+    pub svg: String,
+}
+
+#[derive(Clone)]
 pub enum Body {
-    SmilesList(Vec<String>),
+    SmilesList {
+        total_mols: usize,
+        mols: Vec<DrawMol>,
+    },
     Report(String),
 }
 

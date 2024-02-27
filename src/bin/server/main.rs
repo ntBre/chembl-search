@@ -32,6 +32,7 @@ impl AppState {
         self.cli.parameters.iter().find(|p| p.id == id)
     }
 
+    #[inline]
     fn param_by_id_mut(&mut self, id: &str) -> Option<&mut Parameter> {
         self.cli.parameters.iter_mut().find(|p| p.id == id)
     }

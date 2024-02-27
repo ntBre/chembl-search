@@ -19,10 +19,12 @@
 </form>
 
 {% match body %}
-	{% when Body::SmilesList with (smiles_list) %}
-		<h2>{{smiles_list.len()}} molecules</h2>
-		{% for (i, smile) in smiles_list.iter().enumerate().take(50) %}
-		<p>{{i}}: {{rsearch::rdkit::ROMol::from_smiles(smile).draw_svg(300, 300, "", [])|safe}}</p>
+	{% when Body::SmilesList with {total_mols, mols} %}
+		<h2>Showing {{mols.len()}}/{{total_mols}} molecules</h2>
+		{% for m in mols.iter() %}
+		<p>{{m.natoms}}</p>
+		<p>{{m.smiles}}</p>
+		<p>{{m.svg|safe}}</p>
 		{% endfor %}
 	{% when Body::Report with (s) %}
 		{{s|safe}}

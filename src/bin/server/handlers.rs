@@ -11,15 +11,17 @@ use axum::{
 };
 use log::debug;
 use openff_toolkit::ForceField;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rsearch::{
     cluster::{dbscan, Label},
+    find_matches_full,
     rdkit::{find_smarts_matches, fingerprint::tanimoto, ROMol},
     utils::{load_mols, make_fps, Report},
 };
 
 use crate::{
     config::Parameter,
-    templates::{Body, Index, Param},
+    templates::{Body, DrawMol, Index, Param},
     AppState,
 };
 
@@ -99,14 +101,7 @@ fn single(
         .collect();
 
     // pid to mol
-    let mol_map: Vec<(String, ROMol)> = ForceField::load(ff)
-        .unwrap()
-        .get_parameter_handler(&param.typ)
-        .unwrap()
-        .parameters()
-        .into_iter()
-        .map(|p| (p.id(), ROMol::from_smarts(&p.smirks())))
-        .collect();
+    let mol_map = get_mol_map(ff, &param.typ);
 
     let existing_inchis: HashSet<_> = read_to_string("data/inchis.dat")
         .unwrap()
@@ -185,6 +180,17 @@ fn single(
     Ok((output, max + 1))
 }
 
+fn get_mol_map(ff: &str, param_type: &str) -> Vec<(String, ROMol)> {
+    ForceField::load(ff)
+        .unwrap()
+        .get_parameter_handler(param_type)
+        .unwrap()
+        .parameters()
+        .into_iter()
+        .map(|p| (p.id(), ROMol::from_smarts(&p.smirks())))
+        .collect()
+}
+
 pub(crate) async fn param(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(pid): Path<String>,
@@ -239,11 +245,44 @@ pub(crate) async fn param(
             .clone()
             .unwrap()
     } else {
+        const MAX_DRAW: usize = 50; /* the maximum number of mols to draw */
+        let mol_map = get_mol_map(&state.cli.forcefield, &param.typ);
+        let mut mols: Vec<_> = smiles_list
+            .into_par_iter()
+            .map(|s| {
+                let mut mol = ROMol::from_smiles(&s);
+                // I don't really want to do this because it's expensive
+                mol.openff_clean();
+                let natoms = mol.num_atoms();
+                (mol, s, natoms)
+            })
+            .collect();
+        // sort first and only draw MAX_DRAW of them
+        mols.sort_by_key(|(_mol, _smiles, natoms)| *natoms);
+        let total_mols = mols.len();
+        let mols = mols
+            .into_iter()
+            .take(MAX_DRAW)
+            .map(|(mut mol, smiles, _natoms)| {
+                mol.openff_clean();
+                let (hl_atoms, _pid) = find_matches_full(&mol_map, &mol)
+                    .into_iter()
+                    .find(|(_atoms, param_id)| param_id == &pid)
+                    .unwrap_or_default();
+                let svg = mol.draw_svg(300, 300, "", &hl_atoms);
+                let natoms = mol.num_atoms();
+                DrawMol {
+                    smiles,
+                    natoms,
+                    svg,
+                }
+            })
+            .collect();
         Param {
             do_fragment: param.fragment,
             dbscan: param.dbscan,
             pid: pid.clone(),
-            body: Body::SmilesList(smiles_list),
+            body: Body::SmilesList { mols, total_mols },
         }
     };
     let slot = state.param_states.get_mut(&pid).unwrap();
