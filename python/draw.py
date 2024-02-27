@@ -47,6 +47,8 @@ def main(input_file, output_file):
     with open(input_file) as inp, open(output_file, "w") as out:
         last = None
         for line in inp:
+            if line.startswith("#"):
+                continue
             [param, smiles] = line.split()
             if param != last:
                 out.write(f"<h1>{param}</h1>\n")
