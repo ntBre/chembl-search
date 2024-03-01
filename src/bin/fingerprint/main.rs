@@ -9,9 +9,9 @@ use std::{
 use config::Parameter;
 use log::info;
 use openff_toolkit::ForceField;
+use rdkit_rs::{fingerprint::tanimoto, ROMol};
 use rsearch::{
     cluster::{dbscan, Label},
-    rdkit::{fingerprint::tanimoto, ROMol},
     utils::{load_mols, make_fps, Report},
 };
 

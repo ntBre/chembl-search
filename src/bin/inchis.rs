@@ -4,7 +4,7 @@ use openff_qcsubmit::results::{
     BaseResultCollection, OptimizationResultCollection,
     TorsionDriveResultCollection,
 };
-use rsearch::rdkit::ROMol;
+use rdkit_rs::ROMol;
 
 fn load_inchis<T>(path: impl AsRef<Path>) -> HashSet<String>
 where

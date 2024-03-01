@@ -12,10 +12,10 @@ use axum::{
 use log::debug;
 use openff_toolkit::ForceField;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rdkit_rs::{find_smarts_matches, fingerprint::tanimoto, ROMol};
 use rsearch::{
     cluster::{dbscan, Label},
     find_matches_full,
-    rdkit::{find_smarts_matches, fingerprint::tanimoto, ROMol},
     utils::{load_mols, make_fps, Report},
 };
 

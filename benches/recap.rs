@@ -1,4 +1,4 @@
-use rsearch::rdkit::{
+use rsearch::rdkit_rs::{
     fragment::{recap_decompose, RecapResult},
     ROMol,
 };

@@ -9,11 +9,9 @@ use log::{debug, info, trace};
 use rayon::iter::{
     IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
+use rdkit_rs::{bitvector::BitVector, fragment::recap_decompose, ROMol};
 
-use crate::{
-    find_matches_full,
-    rdkit::{bitvector::BitVector, fragment::recap_decompose, ROMol},
-};
+use crate::find_matches_full;
 
 pub fn make_fps(mols: &Vec<ROMol>, radius: u32) -> Vec<BitVector> {
     mols.par_iter()

@@ -6,7 +6,7 @@ use clap::Parser;
 use log::trace;
 use openff_toolkit::ForceField;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use rsearch::rdkit::{RDError, ROMol, SDMolSupplier};
+use rdkit_rs::{RDError, ROMol, SDMolSupplier};
 use rsearch::{find_matches, load_want, print_output, write_output};
 
 #[derive(Parser)]

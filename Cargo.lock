@@ -1063,6 +1063,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdkit-rs"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.4.1",
+ "log",
+ "rdkit-sys",
+]
+
+[[package]]
 name = "rdkit-sys"
 version = "0.1.0"
 dependencies = [
@@ -1128,6 +1137,7 @@ dependencies = [
  "openff-qcsubmit",
  "openff-toolkit",
  "rayon",
+ "rdkit-rs",
  "rdkit-sys",
  "serde",
  "tokio",

@@ -7,12 +7,9 @@ use std::{
 use log::trace;
 use matrix::Matrix;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use rdkit::{
+use rdkit_rs::{
     bitvector::BitVector, find_smarts_matches_mol, fingerprint::tanimoto, ROMol,
 };
-
-/// TODO move this to its own crate, possibly in a workspace with rdkit-sys
-pub mod rdkit;
 
 pub mod cluster;
 pub mod matrix;
@@ -104,13 +101,11 @@ mod tests {
     use std::fs::read_to_string;
 
     use openff_toolkit::ForceField;
-
-    use crate::{
-        find_matches,
-        rdkit::{
-            find_smarts_matches, find_smarts_matches_mol, ROMol, SDMolSupplier,
-        },
+    use rdkit_rs::{
+        find_smarts_matches, find_smarts_matches_mol, ROMol, SDMolSupplier,
     };
+
+    use crate::find_matches;
 
     #[test]
     fn first_molecule() {

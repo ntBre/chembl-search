@@ -165,7 +165,7 @@ mod tests {
             .unwrap()
             .lines()
         {
-            let mol = crate::rdkit::ROMol::from_smiles(smiles);
+            let mol = rdkit_rs::ROMol::from_smiles(smiles);
             let fp = mol.morgan_fingerprint_bit_vec::<1024>(4);
             fps.push(fp);
         }

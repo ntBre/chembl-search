@@ -6,11 +6,8 @@ use std::{collections::HashMap, path::Path, sync::atomic::AtomicUsize};
 
 use clap::Parser;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use rsearch::{
-    load_want, print_output,
-    rdkit::{find_smarts_matches_mol, RDError, ROMol, SDMolSupplier},
-    write_output,
-};
+use rdkit_rs::{find_smarts_matches_mol, RDError, ROMol, SDMolSupplier};
+use rsearch::{load_want, print_output, write_output};
 
 #[derive(Parser)]
 struct Cli {
