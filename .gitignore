@@ -17,3 +17,4 @@ chembl_33.sdf
 
 output/*.html
 /.output.bak/
+/output/sulfur.dat
