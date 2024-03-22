@@ -225,17 +225,17 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.66.1"
+version = "0.69.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b84e06fc203107bfbad243f4aba2af864eb7db3b1cf46ea0a023b0b433d2a7"
+checksum = "a00dc851838a2120612785d195287475a3ac45514741da670b735818822129a0"
 dependencies = [
  "bitflags 2.4.1",
  "cexpr",
  "clang-sys",
+ "itertools",
  "lazy_static",
  "lazycell",
  "log",
- "peeking_take_while",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -670,6 +670,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e186cfbae8084e513daff4240b4797e342f988cecda4fb6c939150f96315fd8"
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -849,6 +858,7 @@ dependencies = [
 name = "openff-qcsubmit"
 version = "0.1.0"
 dependencies = [
+ "openff-toolkit",
  "pyo3",
  "qcportal",
  "utils",
@@ -901,12 +911,6 @@ dependencies = [
  "smallvec",
  "windows-targets 0.48.5",
 ]
-
-[[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
 name = "percent-encoding"
@@ -1074,6 +1078,7 @@ dependencies = [
 [[package]]
 name = "rdkit-sys"
 version = "0.1.0"
+source = "git+https://github.com/ntBre/rdkit-sys#cea0dee7a5865ad3d8dd70c1caa93ef897e296d5"
 dependencies = [
  "bindgen",
 ]
@@ -1138,7 +1143,6 @@ dependencies = [
  "openff-toolkit",
  "rayon",
  "rdkit-rs",
- "rdkit-sys",
  "serde",
  "tokio",
  "toml",
