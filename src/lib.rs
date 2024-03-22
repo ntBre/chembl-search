@@ -19,7 +19,7 @@ pub mod utils;
 /// into a HashSet
 pub fn load_want(path: &str) -> HashSet<String> {
     std::fs::read_to_string(path)
-        .unwrap()
+        .unwrap_or_else(|e| panic!("failed to open `{path}` with `{e:?}`"))
         .lines()
         .map(|s| s.trim().to_owned())
         .collect()
