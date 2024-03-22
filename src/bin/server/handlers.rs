@@ -221,7 +221,7 @@ pub(crate) async fn param(
     };
     // this means Cluster button was pressed, so we overwrite whatever was there
     // before
-    let tmpl = if params.get("eps").is_some() {
+    let tmpl = if params.contains_key("eps") {
         {
             let param = state.param_by_id_mut(&pid).unwrap();
             param.dbscan.epsilon = params.get("eps").unwrap().parse().unwrap();

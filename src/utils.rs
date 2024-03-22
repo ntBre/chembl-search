@@ -218,11 +218,11 @@ impl Report<'_> {
     pub fn make_svg(&self, mol: &ROMol) -> String {
         let mut hl_atoms = Vec::new();
         let pid = self.parameter;
-        if self.map.get(pid).is_some() {
+        if self.map.contains_key(pid) {
             let tmp = find_matches_full(&self.mol_map, mol);
             let got = tmp.iter().find(|(_atoms, param_id)| param_id == &pid);
             if let Some((atoms, _pid)) = got {
-                hl_atoms = atoms.clone();
+                hl_atoms.clone_from(atoms);
             } else {
                 panic!("smirks doesn't match any more");
             }
