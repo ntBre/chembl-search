@@ -46,9 +46,9 @@ fn main() {
     env_logger::init();
 
     let cli = Cli::parse();
-    trace!("initializing mol supplier");
+    trace!("initializing mol supplier from {}", cli.molecule_file);
     let m = SDMolSupplier::new(cli.molecule_file).unwrap();
-    trace!("initialized mol supplier");
+    trace!("initializing force field from {}", cli.forcefield);
     let ff = ForceField::load(&cli.forcefield).unwrap();
     let h = ff.get_parameter_handler(&cli.parameter_type).unwrap();
     let mut params = Vec::new();
@@ -75,11 +75,9 @@ fn main() {
         };
         trace!("calling clean");
         mol.openff_clean();
-        trace!("finished clean");
 
         trace!("calling find_matches");
         let matches = find_matches(&params, &mol);
-        trace!("finished find_matches");
 
         let mut res: Vec<(String, String)> = Vec::new();
         let mut smiles = None;
