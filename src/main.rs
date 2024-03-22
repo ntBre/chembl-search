@@ -65,10 +65,12 @@ fn main() {
 
     let progress = AtomicUsize::new(0);
 
+    const PROGRESS_INTERVAL: usize = 1000;
+
     let map_op = |mol: Result<ROMol, RDError>| -> Vec<(String, String)> {
         let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if cur % 24_000 == 0 {
-            eprintln!("{}% complete", cur / 24_000);
+        if cur % PROGRESS_INTERVAL == 0 {
+            eprintln!("{cur} complete");
         }
         let Ok(mut mol) = mol else {
             return Vec::new();
