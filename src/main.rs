@@ -70,7 +70,7 @@ fn main() {
     let map_op = |mol: Result<ROMol, RDError>| -> Vec<(String, String)> {
         let cur = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if cur % PROGRESS_INTERVAL == 0 {
-            eprintln!("{cur} complete");
+            eprint!("{cur} complete\r");
         }
         let Ok(mut mol) = mol else {
             return Vec::new();
